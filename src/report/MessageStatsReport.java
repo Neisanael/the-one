@@ -99,8 +99,10 @@ public class MessageStatsReport extends Report implements MessageListener {
 
 		this.nrofRelayed++;
 		if (finalTarget) {
-			this.latencies.add(getSimTime() -
-				this.creationTimes.get(m.getId()) );
+			if(this.creationTimes.get(m.getId()) != null){
+				this.latencies.add(getSimTime() -
+						this.creationTimes.get(m.getId()) );
+			}
 			this.nrofDelivered++;
 			this.hopCounts.add(m.getHops().size() - 1);
 
