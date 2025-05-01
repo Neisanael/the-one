@@ -8,12 +8,11 @@ import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import core.Message;
 import core.Settings;
+import routing.util.SubscriberKey;
 
 import java.math.BigInteger;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class GrouperRouter extends ActiveRouter implements PropertySettings {
     public GrouperRouter(Settings s) {
@@ -76,6 +75,7 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     private void updateKeysWith(DTNHost otherHost) throws Exception {
         if(otherHost instanceof Broker && this.getHost() instanceof Broker){
+            //System.out.println(((Broker) otherHost).getPublicSecretKey().size());
             for (Map.Entry<DTNHost, BigInteger> entry : ((Broker) otherHost).getPublicSecretKey().entrySet()) {
                 if (!((Broker) this.getHost()).getPublicSecretKey().containsKey(entry.getKey())) {
                     ((Broker) this.getHost()).addPublicSecretKey(entry.getKey(), entry.getValue());
@@ -222,4 +222,5 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
     public GrouperRouter replicate() {
         return new GrouperRouter(this);
     }
+
 }

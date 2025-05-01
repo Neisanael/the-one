@@ -6,6 +6,7 @@ import GroupBased.PropertySettings;
 import core.*;
 import movement.MovementModel;
 import routing.MessageRouter;
+import routing.util.SubscriberKey;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -17,7 +18,7 @@ import java.util.stream.Collectors;
 
 import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 
-public class Broker extends DTNHost implements PropertySettings {
+public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     private List<MergedInterval> groups;
     private Map<DTNHost, BigInteger> publicSecretKey;
     private List<Set<byte[]>> encryptedEentsGrouped;
@@ -177,6 +178,12 @@ public class Broker extends DTNHost implements PropertySettings {
         }
 
         return combinedResults;
+    }
+
+    @Override
+    public Map<DTNHost, Integer> getKeys() {
+
+        return Map.of();
     }
 
 

@@ -38,7 +38,7 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
     public void processEvent(World world) {
         DTNHost to = world.getNodeByAddress(this.toAddr);
         DTNHost from = world.getNodeByAddress(this.fromAddr);
-        if(from instanceof Publisher && to instanceof Subscriber){
+        if(from instanceof Publisher && to instanceof Broker){
             Message m = new Message(from, to, this.id, this.size);
             m.addProperty(EVENTS, GenerateInterest.generateEventData());
             m.setResponseSize(this.responseSize);
