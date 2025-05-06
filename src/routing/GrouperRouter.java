@@ -1,16 +1,16 @@
 package routing;
 
 import GroupBased.PropertySettings;
-import core.Connection;
-import core.DTNHost;
+import core.*;
 import core.GroupBased.Broker;
 import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
-import core.Message;
-import core.Settings;
 import routing.util.SubscriberKey;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
+import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.*;
 
@@ -47,46 +47,64 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
         // Generate private keys
         BigInteger privBroker = new BigInteger(256, random);
-        BigInteger privSubscriber = new BigInteger(256, random);
+        BigInteger privSubscriberOrPublisher = new BigInteger(256, random);
 
         // Compute public keys
         BigInteger pubBroker = primeG.modPow(privBroker, primeP);
-        BigInteger pubSubscriber = primeG.modPow(privSubscriber, primeP);
+        BigInteger pubSubscriber = primeG.modPow(privSubscriberOrPublisher, primeP);
+
         if (this.getHost() instanceof Broker && otherHost instanceof Subscriber) {
-            if(((Broker) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
-                return;
-            }else {
+            if(!((Broker) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
                 BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
-                ((Subscriber) otherHost).addPublicSecretKey(this.getHost(), secretA);
-                BigInteger secretB = pubBroker.modPow(privSubscriber, primeP); // A^b mod p
-                ((Broker) this.getHost()).addPublicSecretKey(otherHost, secretB);
+                ((Subscriber) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretA));
+                BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
+                ((Broker) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretB));
             }
         }else if(this.getHost() instanceof Subscriber && otherHost instanceof Broker){
-            if(((Subscriber) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
-                return;
-            }else{
+            if(!((Subscriber) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
                 BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
-                ((Subscriber) this.getHost()).addPublicSecretKey(otherHost, secretA);
-                BigInteger secretB = pubBroker.modPow(privSubscriber, primeP); // A^b mod p
-                ((Broker) otherHost).addPublicSecretKey(this.getHost(), secretB);
+                ((Subscriber) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+                BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
+                ((Broker) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretB));
+            }
+        }else if(this.getHost() instanceof Broker && otherHost instanceof Publisher){
+            if(!((Broker) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
+                BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
+                ((Publisher) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretA));
+                BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
+                ((Broker) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretB));
+            }
+        }else if(this.getHost() instanceof Publisher && otherHost instanceof Broker){
+            if(!((Publisher) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
+                BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
+                ((Publisher) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+                BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
+                ((Broker) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretB));
             }
         }
     }
 
     private void updateKeysWith(DTNHost otherHost) throws Exception {
         if(otherHost instanceof Broker && this.getHost() instanceof Broker){
-            //System.out.println(((Broker) otherHost).getPublicSecretKey().size());
-            for (Map.Entry<DTNHost, BigInteger> entry : ((Broker) otherHost).getPublicSecretKey().entrySet()) {
+            for (Map.Entry<DTNHost, SecretKey> entry : ((Broker) otherHost).getPublicSecretKey().entrySet()) {
                 if (!((Broker) this.getHost()).getPublicSecretKey().containsKey(entry.getKey())) {
                     ((Broker) this.getHost()).addPublicSecretKey(entry.getKey(), entry.getValue());
                 }
             }
-            for (Map.Entry<DTNHost, BigInteger> entry : ((Broker) this.getHost()).getPublicSecretKey().entrySet()) {
+            for (Map.Entry<DTNHost, SecretKey> entry : ((Broker) this.getHost()).getPublicSecretKey().entrySet()) {
                 if (!((Broker) otherHost).getPublicSecretKey().containsKey(entry.getKey())) {
                     ((Broker) otherHost).addPublicSecretKey(entry.getKey(), entry.getValue());
                 }
             }
         }
+    }
+
+    public static SecretKey convertToAESKey(BigInteger bigInt) throws NoSuchAlgorithmException {
+        byte[] keyBytes = bigInt.toByteArray();
+        byte[] normalizedKey = new byte[32];
+        int length = Math.min(keyBytes.length, 32);
+        System.arraycopy(keyBytes, 0, normalizedKey, 32 - length, length);
+        return new SecretKeySpec(normalizedKey, "AES");
     }
 
     /**
@@ -124,7 +142,6 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
     public boolean createNewMessage(Message msg) {
         makeRoomForNewMessage(msg.getSize());
         msg.setTtl(this.msgTtl);
-        //addToMessages(msg, !(msg.getFrom() instanceof Subscriber) && !(msg.getFrom() instanceof Publisher));
         addToMessages(msg, true);
         return true;
     }
@@ -154,7 +171,6 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
                 this.tryMessagesToConnections(getMessagesWithEvents(), getConnectedBrokerOrPublisherHosts());
             }
         }
-        // then try other message
     }
 
     protected List<Connection> getConnectedBrokerOrSubscriberHosts() {

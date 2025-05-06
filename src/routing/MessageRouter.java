@@ -4,16 +4,15 @@
  */
 package routing;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+
+import GroupBased.PropertySettings;
 import core.Application;
 import core.Connection;
 import core.DTNHost;
+import core.GroupBased.Broker;
+import core.GroupBased.Publisher;
+import core.GroupBased.Subscriber;
 import core.Message;
 import core.MessageListener;
 import core.Settings;
@@ -26,7 +25,7 @@ import util.Tuple;
 /**
  * Superclass for message routers.
  */
-public abstract class MessageRouter {
+public abstract class MessageRouter implements PropertySettings {
 	/** Message buffer size -setting id ({@value}). Long value in bytes.*/
 	public static final String B_SIZE_S = "bufferSize";
 	/**
@@ -399,8 +398,24 @@ public abstract class MessageRouter {
 		}
 
 		for (MessageListener ml : this.mListeners) {
-			ml.messageTransferred(aMessage, from, this.host,
-					isFirstDelivery);
+			if(this.getHost() instanceof Subscriber){
+				if(aMessage.getProperty(ENCRYPTED) != null ){
+					Object encryptedProperty = aMessage.getProperty(ENCRYPTED);
+					if(encryptedProperty instanceof Map){
+						Map<byte[], List<byte[]>> encryptedMap = (Map<byte[], List<byte[]>>) encryptedProperty;
+						for (byte[] key : encryptedMap.keySet()) {
+							for(byte[] value : encryptedMap.get(key)){
+								if (((Subscriber) this.getHost()).openMessages(key, value)) {
+									ml.messageTransferred(aMessage, from, this.host, isFirstDelivery);
+								}
+							}
+						}
+					}
+				}
+			}else{
+				ml.messageTransferred(aMessage, from, this.host,
+						isFirstDelivery);
+			}
 		}
 
 		return aMessage;

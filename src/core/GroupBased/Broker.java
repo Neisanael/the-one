@@ -20,8 +20,9 @@ import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 
 public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     private List<MergedInterval> groups;
-    private Map<DTNHost, BigInteger> publicSecretKey;
-    private List<Set<byte[]>> encryptedEentsGrouped;
+    private Map<DTNHost, SecretKey> publicSecretKey;
+    private Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encteted KG
+    private Map<SecretKey, List<DTNHost>> cachedEvents; //caching per group list of Subscriber
 
     /**
      * Creates a new DTNHost.
@@ -37,18 +38,19 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     public Broker(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
         publicSecretKey = new HashMap<>();
-        encryptedEentsGrouped = new ArrayList<>();
+        encryptedEventsGrouped = new HashMap<>();
+        cachedEvents = new HashMap<>();
     }
 
-    public Map<DTNHost, BigInteger> getPublicSecretKey() {
+    public Map<DTNHost, SecretKey> getPublicSecretKey() {
         return publicSecretKey;
     }
 
-    public void setPublicSecretKey(Map<DTNHost, BigInteger> publicSecretKey) {
+    public void setPublicSecretKey(Map<DTNHost, SecretKey> publicSecretKey) {
         this.publicSecretKey = publicSecretKey;
     }
 
-    public void addPublicSecretKey(DTNHost host, BigInteger publicSecretKey) {
+    public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
         this.publicSecretKey.put(host, publicSecretKey);
     }
 
@@ -57,32 +59,64 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         GroupedEvents();
     }
 
-    private void GroupedEvents(){
+    private void GroupedEvents() {
+        Set<EventData> restoredSet = new HashSet<>();
         for(Message msg : getMessageCollection()){
             if(msg.getProperty(EVENTS) != null && msg.getProperty(EVENTS) instanceof Set<?>){
                 try {
-                    Set<EventData> restoredSet = (Set<EventData>) msg.getProperty(EVENTS);
-                    for(EventData ed : restoredSet){
-                        Set<byte[]> eventGroups = new HashSet<>();
-                        if(getGroups() != null){
-                            for(MergedInterval group : getGroups()){
-                                eventGroups.add(encryptEvent(generateLoremIpsum(5), generateAESKey(256)));
-                                if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
-                                    for(DTNHost subscriber : group.getSenders()){
-                                        if(getPublicSecretKey().containsKey(subscriber)){
-                                            // TODO : seharusnya nanti ketika dibuat ulang grouping data sebelumnya terhapus dan menambah ulang lagi
-                                            eventGroups.add(encryptEvent(String.valueOf(getPublicSecretKey().get(subscriber)), generateAESKey(256)));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        encryptedEentsGrouped.add(eventGroups);
-                    }
+                    restoredSet = (Set<EventData>) msg.getProperty(EVENTS);
                 } catch (ClassCastException e) {
                     System.err.println("Failed to cast - wrong generic type");
                 } catch (Exception e) {
                     throw new RuntimeException(e);
+                }
+            }
+        }
+
+        if(getGroups() != null){
+            for(MergedInterval group : getGroups()){
+                if(cachedEvents.values().stream()
+                        .anyMatch(list -> new HashSet<>(list).equals(group.getSenders()))){
+                    try{
+                        List<byte[]> encryptedKeyGroupPerHost = new ArrayList<>();
+                        SecretKey generatedGroupKey = cachedEvents.entrySet().stream()
+                                .filter(entry -> new HashSet<>(entry.getValue()).equals(group.getSenders()))
+                                .map(Map.Entry::getKey)
+                                .findFirst()
+                                .orElse(null);
+                        for (DTNHost subscriber : group.getSenders()) {
+                            if (getPublicSecretKey().containsKey(subscriber)) {
+                                for(EventData ed : restoredSet){
+                                    if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
+                                        encryptedKeyGroupPerHost.add(encryptEvent(String.valueOf(generatedGroupKey), getPublicSecretKey().get(subscriber)));
+                                    }
+                                }
+                            }
+                        }
+                        encryptedEventsGrouped.put(encryptEvent(generateLoremIpsum(5), generatedGroupKey), encryptedKeyGroupPerHost);
+                    }catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
+                }else {
+                    try{
+                        SecretKey generatedGroupKey = generateAESKey(256);
+                        List<DTNHost> cachedHost = new ArrayList<>();
+                        List<byte[]> encryptedKeyGroupPerHost = new ArrayList<>();
+                        for (DTNHost subscriber : group.getSenders()) {
+                            if (getPublicSecretKey().containsKey(subscriber)) {
+                                for(EventData ed : restoredSet){
+                                    if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
+                                        cachedHost.add(subscriber);
+                                        encryptedKeyGroupPerHost.add(encryptKey(generatedGroupKey, getPublicSecretKey().get(subscriber)));
+                                    }
+                                }
+                            }
+                        }
+                        encryptedEventsGrouped.put(encryptEvent(generateLoremIpsum(5), generatedGroupKey), encryptedKeyGroupPerHost);
+                        cachedEvents.put(generatedGroupKey, cachedHost);
+                    }catch (Exception e) {
+                        throw new RuntimeException(e);
+                    }
                 }
             }
         }
@@ -92,6 +126,12 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
         keyGen.init(keySize);
         return keyGen.generateKey();
+    }
+
+    public byte[] encryptKey(SecretKey keyToEncrypt, SecretKey encryptionKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, encryptionKey);
+        return cipher.doFinal(keyToEncrypt.getEncoded());
     }
 
     private byte[] encryptEvent(String event, SecretKey key) throws Exception {
@@ -104,8 +144,8 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         return cipher.doFinal(data);
     }
 
-    public List<Set<byte[]>> getEncryptedEventsGrouped() {
-        return encryptedEentsGrouped;
+    public Map<byte[], List<byte[]>> getEncryptedEventsGrouped() {
+        return encryptedEventsGrouped;
     }
 
     public List<MergedInterval> getGroups() {

@@ -4,9 +4,14 @@ import core.*;
 import movement.MovementModel;
 import routing.MessageRouter;
 
+import javax.crypto.SecretKey;
+import java.math.BigInteger;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Publisher extends DTNHost {
+    private Map<DTNHost, SecretKey> publicSecretKey;
     /**
      * Creates a new DTNHost.
      *
@@ -20,5 +25,14 @@ public class Publisher extends DTNHost {
      */
     public Publisher(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
+        publicSecretKey = new HashMap<>();
+    }
+
+    public Map<DTNHost, SecretKey> getPublicSecretKey() {
+        return publicSecretKey;
+    }
+
+    public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
+        this.publicSecretKey.put(host, publicSecretKey);
     }
 }

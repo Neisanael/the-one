@@ -1,17 +1,22 @@
 package core.GroupBased;
 
+import GroupBased.PropertySettings;
 import core.*;
 import movement.MovementModel;
 import routing.MessageRouter;
 
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
-public class Subscriber extends DTNHost {
-    private Map<DTNHost, BigInteger> publicSecretKey;
+public class Subscriber extends DTNHost implements PropertySettings {
+    private Map<DTNHost, SecretKey> publicSecretKey;
 
     /**
      * Creates a new DTNHost.
@@ -30,19 +35,47 @@ public class Subscriber extends DTNHost {
         publicSecretKey = new HashMap<>();
     }
 
-    public Map<DTNHost, BigInteger> getPublicSecretKey() {
+    public Map<DTNHost, SecretKey> getPublicSecretKey() {
         return publicSecretKey;
     }
 
-    public void setPublicSecretKey(Map<DTNHost, BigInteger> publicSecretKey) {
-        this.publicSecretKey = publicSecretKey;
-    }
-
-    public void addPublicSecretKey(DTNHost host, BigInteger publicSecretKey) {
+    public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
         this.publicSecretKey.put(host, publicSecretKey);
     }
 
-    public String openMessages() {
-        return "";
+    public Boolean openMessages(byte[] payload,byte[] val) {
+        for (Map.Entry<DTNHost, SecretKey> entry : publicSecretKey.entrySet()) {
+            try {
+                String value = decryptEvent(payload, decryptSecretKey(val, entry.getValue()));
+                System.out.println(value);
+                return true;
+            } catch (Exception e) {
+                //System.err.println("error decrypting: " + e.getMessage());
+                // Decryption failed with this key, try the next one
+                continue;
+            }
+        }
+
+        return false;
+    }
+
+    private String decryptEvent(byte[] encryptedData, SecretKey key) throws Exception {
+        byte[] decryptedBytes = decryptAES(encryptedData, key);
+        return new String(decryptedBytes, StandardCharsets.UTF_8);
+    }
+
+    private static byte[] decryptAES(byte[] encryptedData, SecretKey key) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, key);
+        return cipher.doFinal(encryptedData);
+    }
+
+    public SecretKey decryptSecretKey(byte[] encryptedKey, SecretKey decryptionKey) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.DECRYPT_MODE, decryptionKey);
+        byte[] decryptedKeyBytes = cipher.doFinal(encryptedKey);
+
+        // Reconstruct the SecretKey from the decrypted bytes
+        return new SecretKeySpec(decryptedKeyBytes, "AES");
     }
 }

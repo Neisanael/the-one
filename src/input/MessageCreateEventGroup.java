@@ -1,6 +1,7 @@
 package input;
 
 import GroupBased.GenerateInterest;
+import GroupBased.LoremIpsumGenerator;
 import GroupBased.PropertySettings;
 import core.DTNHost;
 import core.GroupBased.Broker;
@@ -8,6 +9,10 @@ import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import core.Message;
 import core.World;
+
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
 
 public class MessageCreateEventGroup extends MessageEvent implements PropertySettings {
     private final int size;
@@ -39,10 +44,14 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
         DTNHost to = world.getNodeByAddress(this.toAddr);
         DTNHost from = world.getNodeByAddress(this.fromAddr);
         if(from instanceof Publisher && to instanceof Broker){
-            Message m = new Message(from, to, this.id, this.size);
-            m.addProperty(EVENTS, GenerateInterest.generateEventData());
-            m.setResponseSize(this.responseSize);
-            from.createNewMessage(m);
+            if(((Publisher) from).getPublicSecretKey() != null){
+                if(((Publisher) from).getPublicSecretKey().containsKey(to)){
+                    Message m = new Message(from, to, this.id, this.size);
+                    m.addProperty(EVENTS, GenerateInterest.generateEventData());
+                    m.setResponseSize(this.responseSize);
+                    from.createNewMessage(m);
+                }
+            }
         } else if (from instanceof Subscriber && to instanceof Broker){
             if(((Subscriber) from).getPublicSecretKey() != null){
                 if(((Subscriber) from).getPublicSecretKey().containsKey(to)){
@@ -53,10 +62,12 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
                 }
             }
         } else if (from instanceof Broker && to instanceof Publisher){
-            Message m = new Message(from, to, this.id, this.size);
-            m.addProperty(ENCRYPTED, ((Broker) from).getEncryptedEventsGrouped());
-            m.setResponseSize(this.responseSize);
-            from.createNewMessage(m);
+            if(!((Broker) from).getEncryptedEventsGrouped().isEmpty()){
+                Message m = new Message(from, to, this.id, this.size);
+                m.addProperty(ENCRYPTED, ((Broker) from).getEncryptedEventsGrouped());
+                m.setResponseSize(this.responseSize);
+                from.createNewMessage(m);
+            }
         }
     }
 

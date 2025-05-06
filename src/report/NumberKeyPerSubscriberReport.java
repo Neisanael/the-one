@@ -32,7 +32,7 @@ public class NumberKeyPerSubscriberReport extends Report implements UpdateListen
         for (DTNHost host : hosts) {
             if (host.getRouter() instanceof GrouperRouter) {
                 GrouperRouter router = (GrouperRouter) host.getRouter();
-                Map<DTNHost, Integer> localKeys = router.getKeys();
+                /*Map<DTNHost, Integer> localKeys = router.getKeys();
 
                 if (localKeys != null && !localKeys.isEmpty()) {
                     for (Map.Entry<DTNHost, Integer> entry : localKeys.entrySet()) {
@@ -40,7 +40,7 @@ public class NumberKeyPerSubscriberReport extends Report implements UpdateListen
                         int count = entry.getValue();
                         maxKeyPerSubscriber.merge(subscriber, count, Math::max);
                     }
-                }
+                }*/
 
             }
         }
