@@ -16,7 +16,9 @@ import java.util.Map;
 import java.util.Random;
 
 public class Subscriber extends DTNHost implements PropertySettings {
-    private Map<DTNHost, SecretKey> publicSecretKey;
+    private final Map<DTNHost, SecretKey> publicSecretKey;
+
+    private PairKey pairKey;
 
     /**
      * Creates a new DTNHost.
@@ -31,8 +33,8 @@ public class Subscriber extends DTNHost implements PropertySettings {
      */
     public Subscriber(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
-        Random rand = new Random();
         publicSecretKey = new HashMap<>();
+        pairKey = new PairKey();
     }
 
     public Map<DTNHost, SecretKey> getPublicSecretKey() {
@@ -77,5 +79,13 @@ public class Subscriber extends DTNHost implements PropertySettings {
 
         // Reconstruct the SecretKey from the decrypted bytes
         return new SecretKeySpec(decryptedKeyBytes, "AES");
+    }
+
+    public PairKey getPairKey() {
+        return pairKey;
+    }
+
+    public void setPairKey(PairKey pairKey) {
+        this.pairKey = pairKey;
     }
 }

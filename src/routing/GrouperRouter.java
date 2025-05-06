@@ -3,6 +3,7 @@ package routing;
 import GroupBased.PropertySettings;
 import core.*;
 import core.GroupBased.Broker;
+import core.GroupBased.PairKey;
 import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import routing.util.SubscriberKey;

@@ -21,6 +21,7 @@ import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     private List<MergedInterval> groups;
     private Map<DTNHost, SecretKey> publicSecretKey;
+    private List<PairKey> pairKeys;
     private Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encteted KG
     private Map<SecretKey, List<DTNHost>> cachedEvents; //caching per group list of Subscriber
 
@@ -38,6 +39,7 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     public Broker(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
         publicSecretKey = new HashMap<>();
+        pairKeys = new ArrayList<>();
         encryptedEventsGrouped = new HashMap<>();
         cachedEvents = new HashMap<>();
     }
@@ -328,5 +330,17 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                     .collect(Collectors.joining(","));
             return String.format("G(%d,%d)<%s>", start, end, senderNames);
         }
+    }
+
+    public List<PairKey> getPairKeys() {
+        return pairKeys;
+    }
+
+    public void setPairKeys(List<PairKey> pairKeys) {
+        this.pairKeys = pairKeys;
+    }
+
+    public void addPairKey(PairKey pairKey){
+        this.pairKeys.add(pairKey);
     }
 }
