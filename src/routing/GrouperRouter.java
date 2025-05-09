@@ -18,6 +18,15 @@ import java.util.*;
 public class GrouperRouter extends ActiveRouter implements PropertySettings {
     public GrouperRouter(Settings s) {
         super(s);
+        if (s.contains(MSG_TTL_S)) {
+            this.msgTtl = s.getInt(MSG_TTL_S);
+
+            if (this.msgTtl > MAX_TTL_VALUE){
+                throw new SettingsError("Invalid value for " +
+                        s.getFullPropertyName(MSG_TTL_S) +
+                        ". Max value is limited to "+MAX_TTL_VALUE);
+            }
+        }
     }
 
     protected GrouperRouter(GrouperRouter r) {
@@ -52,49 +61,152 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
         // Compute public keys
         BigInteger pubBroker = primeG.modPow(privBroker, primeP);
-        BigInteger pubSubscriber = primeG.modPow(privSubscriberOrPublisher, primeP);
-
+        BigInteger pubSubscriberOrPublisher = primeG.modPow(privSubscriberOrPublisher, primeP);
+        boolean isBrokerHasSubscriberOrPublisherPairKey = false;
+        boolean isKeyEndTime = false;
         if (this.getHost() instanceof Broker && otherHost instanceof Subscriber) {
-            if(!((Broker) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
-                BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
-                ((Subscriber) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretA));
+            for(PairKey pairKey : ((Broker) this.getHost()).getPairKeys()){
+                if (((Subscriber) otherHost).getPairKey().getSecretKey() == pairKey.getSecretKey()) {
+                    isBrokerHasSubscriberOrPublisherPairKey = true;
+                    double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) otherHost).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+                    if(totalCreatedSecretKeyWithMsgTtl == SimClock.getTime()){
+                        isKeyEndTime = true;
+                    }
+                    break;
+                }
+            }
+            if(!isBrokerHasSubscriberOrPublisherPairKey || isKeyEndTime){
+                //Add Key to subscriber
+                BigInteger secretA = pubSubscriberOrPublisher.modPow(privBroker, primeP); // B^a mod p
+                //((Subscriber) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretA));
+                PairKey subscriberPairKey = new PairKey();
+                subscriberPairKey.setSecretKey(convertToAESKey(secretA));
+                subscriberPairKey.setHostThisKeyBelongsTo(otherHost);
+                subscriberPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Subscriber) otherHost).setPairKey(subscriberPairKey);
+                //Add Key to broker
                 BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
-                ((Broker) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretB));
+                //((Broker) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretB));
+                PairKey brokerPairKey = new PairKey();
+                brokerPairKey.setSecretKey(convertToAESKey(secretB));
+                brokerPairKey.setHostThisKeyBelongsTo(otherHost);
+                brokerPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Broker) this.getHost()).addPairKey(brokerPairKey);
             }
         }else if(this.getHost() instanceof Subscriber && otherHost instanceof Broker){
-            if(!((Subscriber) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
-                BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
-                ((Subscriber) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+            for(PairKey pairKey : ((Broker) otherHost).getPairKeys()){
+                if (((Subscriber) this.getHost()).getPairKey().getSecretKey() == pairKey.getSecretKey()) {
+                    isBrokerHasSubscriberOrPublisherPairKey = true;
+                    double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) this.getHost()).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+                    if(totalCreatedSecretKeyWithMsgTtl == SimClock.getTime()){
+                        isKeyEndTime = true;
+                    }
+                    break;
+                }
+            }
+            if(!isBrokerHasSubscriberOrPublisherPairKey || isKeyEndTime){
+                //Add Key to subscriber
+                BigInteger secretA = pubSubscriberOrPublisher.modPow(privBroker, primeP); // B^a mod p
+                //((Subscriber) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+                PairKey subscriberPairKey = new PairKey();
+                subscriberPairKey.setSecretKey(convertToAESKey(secretA));
+                subscriberPairKey.setHostThisKeyBelongsTo(this.getHost());
+                subscriberPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Subscriber) this.getHost()).setPairKey(subscriberPairKey);
+                //Add Key to broker
                 BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
-                ((Broker) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretB));
+                //((Broker) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretB));
+                PairKey brokerPairKey = new PairKey();
+                brokerPairKey.setSecretKey(convertToAESKey(secretB));
+                brokerPairKey.setHostThisKeyBelongsTo(this.getHost());
+                brokerPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Broker) otherHost).addPairKey(brokerPairKey);
             }
         }else if(this.getHost() instanceof Broker && otherHost instanceof Publisher){
-            if(!((Broker) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
-                BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
-                ((Publisher) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretA));
+            for(PairKey pairKey : ((Broker) this.getHost()).getPairKeys()){
+                if (((Publisher) otherHost).getPairKey().getSecretKey() == pairKey.getSecretKey()) {
+                    isBrokerHasSubscriberOrPublisherPairKey = true;
+                    double totalCreatedSecretKeyWithMsgTtl = ((Publisher) otherHost).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+                    if(totalCreatedSecretKeyWithMsgTtl == SimClock.getTime()){
+                        isKeyEndTime = true;
+                    }
+                    break;
+                }
+            }
+            if(!isBrokerHasSubscriberOrPublisherPairKey || isKeyEndTime){
+                //Add Key to publisher
+                BigInteger secretA = pubSubscriberOrPublisher.modPow(privBroker, primeP); // B^a mod p
+                //((Publisher) otherHost).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+                PairKey publisherPairKey = new PairKey();
+                publisherPairKey.setSecretKey(convertToAESKey(secretA));
+                publisherPairKey.setHostThisKeyBelongsTo(otherHost);
+                publisherPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Publisher) otherHost).setPairKey(publisherPairKey);
+                //Add Key to broker
                 BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
-                ((Broker) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretB));
+                //((Broker) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretB));
+                PairKey brokerPairKey = new PairKey();
+                brokerPairKey.setSecretKey(convertToAESKey(secretB));
+                brokerPairKey.setHostThisKeyBelongsTo(otherHost);
+                brokerPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Broker) this.getHost()).addPairKey(brokerPairKey);
             }
         }else if(this.getHost() instanceof Publisher && otherHost instanceof Broker){
-            if(!((Publisher) this.getHost()).getPublicSecretKey().containsKey(otherHost)){
-                BigInteger secretA = pubSubscriber.modPow(privBroker, primeP); // B^a mod p
-                ((Publisher) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+            for(PairKey pairKey : ((Broker) this.getHost()).getPairKeys()){
+                if (((Publisher) this.getHost()).getPairKey().getSecretKey() == pairKey.getSecretKey()) {
+                    isBrokerHasSubscriberOrPublisherPairKey = true;
+                    double totalCreatedSecretKeyWithMsgTtl = ((Publisher) this.getHost()).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+                    if(totalCreatedSecretKeyWithMsgTtl == SimClock.getTime()){
+                        isKeyEndTime = true;
+                    }
+                    break;
+                }
+            }
+            if(!isBrokerHasSubscriberOrPublisherPairKey || isKeyEndTime){
+                //Add Key to publisher
+                BigInteger secretA = pubSubscriberOrPublisher.modPow(privBroker, primeP); // B^a mod p
+                //((Publisher) this.getHost()).addPublicSecretKey(otherHost, convertToAESKey(secretA));
+                PairKey publisherPairKey = new PairKey();
+                publisherPairKey.setSecretKey(convertToAESKey(secretA));
+                publisherPairKey.setHostThisKeyBelongsTo(otherHost);
+                publisherPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Publisher) this.getHost()).setPairKey(publisherPairKey);
+                //Add Key to broker
                 BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
-                ((Broker) otherHost).addPublicSecretKey(this.getHost(), convertToAESKey(secretB));
+                //((Broker) otherHost).addPublicSecretKey(otherHost, convertToAESKey(secretB));
+                PairKey brokerPairKey = new PairKey();
+                brokerPairKey.setSecretKey(convertToAESKey(secretB));
+                brokerPairKey.setHostThisKeyBelongsTo(otherHost);
+                brokerPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+                ((Broker) otherHost).addPairKey(brokerPairKey);
             }
         }
     }
 
     private void updateKeysWith(DTNHost otherHost) throws Exception {
         if(otherHost instanceof Broker && this.getHost() instanceof Broker){
-            for (Map.Entry<DTNHost, SecretKey> entry : ((Broker) otherHost).getPublicSecretKey().entrySet()) {
-                if (!((Broker) this.getHost()).getPublicSecretKey().containsKey(entry.getKey())) {
-                    ((Broker) this.getHost()).addPublicSecretKey(entry.getKey(), entry.getValue());
+            for (PairKey otherPairKey : ((Broker) otherHost).getPairKeys()) {
+                boolean found = false;
+                for (PairKey pairKey : ((Broker) this.getHost()).getPairKeys()) {
+                    if (pairKey.getSecretKey().equals(otherPairKey.getSecretKey())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    ((Broker) this.getHost()).addPairKey(otherPairKey);
                 }
             }
-            for (Map.Entry<DTNHost, SecretKey> entry : ((Broker) this.getHost()).getPublicSecretKey().entrySet()) {
-                if (!((Broker) otherHost).getPublicSecretKey().containsKey(entry.getKey())) {
-                    ((Broker) otherHost).addPublicSecretKey(entry.getKey(), entry.getValue());
+            for (PairKey pairKey : ((Broker) this.getHost()).getPairKeys()) {
+                boolean found = false;
+                for (PairKey otherPairKey : ((Broker) otherHost).getPairKeys()) {
+                    if (pairKey.getSecretKey().equals(otherPairKey.getSecretKey())) {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    ((Broker) otherHost).addPairKey(pairKey);
                 }
             }
         }

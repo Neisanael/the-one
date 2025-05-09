@@ -16,8 +16,7 @@ import java.util.Map;
 import java.util.Random;
 
 public class Subscriber extends DTNHost implements PropertySettings {
-    private final Map<DTNHost, SecretKey> publicSecretKey;
-
+    //private final Map<DTNHost, SecretKey> publicSecretKey;
     private PairKey pairKey;
 
     /**
@@ -33,31 +32,27 @@ public class Subscriber extends DTNHost implements PropertySettings {
      */
     public Subscriber(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
-        publicSecretKey = new HashMap<>();
+        //publicSecretKey = new HashMap<>();
         pairKey = new PairKey();
     }
 
-    public Map<DTNHost, SecretKey> getPublicSecretKey() {
+   /* public Map<DTNHost, SecretKey> getPublicSecretKey() {
         return publicSecretKey;
     }
 
     public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
         this.publicSecretKey.put(host, publicSecretKey);
-    }
+    }*/
 
     public Boolean openMessages(byte[] payload,byte[] val) {
-        for (Map.Entry<DTNHost, SecretKey> entry : publicSecretKey.entrySet()) {
-            try {
-                String value = decryptEvent(payload, decryptSecretKey(val, entry.getValue()));
-                System.out.println(value);
-                return true;
-            } catch (Exception e) {
-                //System.err.println("error decrypting: " + e.getMessage());
-                // Decryption failed with this key, try the next one
-                continue;
-            }
+        try {
+            String value = decryptEvent(payload, decryptSecretKey(val, getPairKey().getSecretKey()));
+            System.out.println(value);
+            return true;
+        } catch (Exception e) {
+            //System.err.println("error decrypting: " + e.getMessage());
+            // Decryption failed with this key, try the next one
         }
-
         return false;
     }
 

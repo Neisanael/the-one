@@ -678,6 +678,10 @@ public abstract class MessageRouter implements PropertySettings {
 		return apps;
 	}
 
+	public int getMsgTtl() {
+		return msgTtl;
+	}
+
 	/**
 	 * Creates a replicate of this router. The replicate has the same
 	 * settings as this router but empty buffers and routing tables.

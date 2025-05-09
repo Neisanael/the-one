@@ -12,7 +12,7 @@ Scenario.endTime = 43200
 ## Interface-specific settings:
 # type : which interface class the interface belongs to
 # For different types, the sub-parameters are interface-specific
-# For SimpleBroadcastInterface, the parameters are:
+# For SimpleBroadcastInterface, thes parameters are:
 # transmitSpeed : transmit speed of the interface (bytes per second)
 # transmitRange : range of the interface (meters)
 

@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 public class Publisher extends DTNHost {
-    private final Map<DTNHost, SecretKey> publicSecretKey;
+    //private final Map<DTNHost, SecretKey> publicSecretKey;
 
     private PairKey pairKey;
     /**
@@ -27,17 +27,17 @@ public class Publisher extends DTNHost {
      */
     public Publisher(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
-        publicSecretKey = new HashMap<>();
+        //publicSecretKey = new HashMap<>();
         pairKey = new PairKey();
     }
 
-    public Map<DTNHost, SecretKey> getPublicSecretKey() {
+    /*public Map<DTNHost, SecretKey> getPublicSecretKey() {
         return publicSecretKey;
     }
 
     public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
         this.publicSecretKey.put(host, publicSecretKey);
-    }
+    }*/
 
     public PairKey getPairKey() {
         return pairKey;

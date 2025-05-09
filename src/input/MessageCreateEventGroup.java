@@ -5,6 +5,7 @@ import GroupBased.LoremIpsumGenerator;
 import GroupBased.PropertySettings;
 import core.DTNHost;
 import core.GroupBased.Broker;
+import core.GroupBased.PairKey;
 import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import core.Message;
@@ -44,21 +45,27 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
         DTNHost to = world.getNodeByAddress(this.toAddr);
         DTNHost from = world.getNodeByAddress(this.fromAddr);
         if(from instanceof Publisher && to instanceof Broker){
-            if(((Publisher) from).getPublicSecretKey() != null){
-                if(((Publisher) from).getPublicSecretKey().containsKey(to)){
-                    Message m = new Message(from, to, this.id, this.size);
-                    m.addProperty(EVENTS, GenerateInterest.generateEventData());
-                    m.setResponseSize(this.responseSize);
-                    from.createNewMessage(m);
+            if(((Publisher) from).getPairKey().getSecretKey() != null){
+                for(PairKey pairKey : ((Broker) to).getPairKeys()){
+                    if(pairKey.getSecretKey().equals(((Publisher) from).getPairKey().getSecretKey())){
+                        Message m = new Message(from, to, this.id, this.size);
+                        m.addProperty(EVENTS, GenerateInterest.generateEventData());
+                        m.setResponseSize(this.responseSize);
+                        from.createNewMessage(m);
+                        break;
+                    }
                 }
             }
         } else if (from instanceof Subscriber && to instanceof Broker){
-            if(((Subscriber) from).getPublicSecretKey() != null){
-                if(((Subscriber) from).getPublicSecretKey().containsKey(to)){
-                    Message m = new Message(from, to, this.id, this.size);
-                    m.addProperty(FILTERS, GenerateInterest.generateFilterData());
-                    m.setResponseSize(this.responseSize);
-                    from.createNewMessage(m);
+            if(((Subscriber) from).getPairKey().getSecretKey() != null){
+                for(PairKey pairKey : ((Broker) to).getPairKeys()){
+                    if(pairKey.getSecretKey().equals(((Subscriber) from).getPairKey().getSecretKey())){
+                        Message m = new Message(from, to, this.id, this.size);
+                        m.addProperty(FILTERS, GenerateInterest.generateFilterData());
+                        m.setResponseSize(this.responseSize);
+                        from.createNewMessage(m);
+                        break;
+                    }
                 }
             }
         } else if (from instanceof Broker && to instanceof Publisher){

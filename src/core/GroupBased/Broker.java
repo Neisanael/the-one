@@ -20,7 +20,7 @@ import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 
 public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     private List<MergedInterval> groups;
-    private Map<DTNHost, SecretKey> publicSecretKey;
+    //private Map<DTNHost, SecretKey> publicSecretKey;
     private List<PairKey> pairKeys;
     private Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encteted KG
     private Map<SecretKey, List<DTNHost>> cachedEvents; //caching per group list of Subscriber
@@ -38,13 +38,13 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
      */
     public Broker(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
-        publicSecretKey = new HashMap<>();
+        //publicSecretKey = new HashMap<>();
         pairKeys = new ArrayList<>();
         encryptedEventsGrouped = new HashMap<>();
         cachedEvents = new HashMap<>();
     }
 
-    public Map<DTNHost, SecretKey> getPublicSecretKey() {
+    /*public Map<DTNHost, SecretKey> getPublicSecretKey() {
         return publicSecretKey;
     }
 
@@ -54,7 +54,7 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
 
     public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
         this.publicSecretKey.put(host, publicSecretKey);
-    }
+    }*/
 
     public void makeGroups(){
         groups = MakeGroup();
@@ -87,10 +87,12 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                                 .findFirst()
                                 .orElse(null);
                         for (DTNHost subscriber : group.getSenders()) {
-                            if (getPublicSecretKey().containsKey(subscriber)) {
-                                for(EventData ed : restoredSet){
-                                    if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
-                                        encryptedKeyGroupPerHost.add(encryptEvent(String.valueOf(generatedGroupKey), getPublicSecretKey().get(subscriber)));
+                            for(PairKey pairKey : getPairKeys()){
+                                if(pairKey.equals(subscriber)){
+                                    for(EventData ed : restoredSet){
+                                        if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
+                                            encryptedKeyGroupPerHost.add(encryptEvent(String.valueOf(generatedGroupKey), pairKey.getSecretKey()));
+                                        }
                                     }
                                 }
                             }
@@ -105,11 +107,13 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                         List<DTNHost> cachedHost = new ArrayList<>();
                         List<byte[]> encryptedKeyGroupPerHost = new ArrayList<>();
                         for (DTNHost subscriber : group.getSenders()) {
-                            if (getPublicSecretKey().containsKey(subscriber)) {
-                                for(EventData ed : restoredSet){
-                                    if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
-                                        cachedHost.add(subscriber);
-                                        encryptedKeyGroupPerHost.add(encryptKey(generatedGroupKey, getPublicSecretKey().get(subscriber)));
+                            for(PairKey pairKey : getPairKeys()){
+                                if(pairKey.equals(subscriber)){
+                                    for(EventData ed : restoredSet){
+                                        if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
+                                            cachedHost.add(subscriber);
+                                            encryptedKeyGroupPerHost.add(encryptKey(generatedGroupKey, pairKey.getSecretKey()));
+                                        }
                                     }
                                 }
                             }
