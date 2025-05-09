@@ -15,7 +15,7 @@ public class KeysPerHostReport extends Report implements IKeyListener {
     private Map<DTNHost, List<SecretKey>> pairKeysPerHost;
     private Map<DTNHost, List<SecretKey>> groupKeysPerBroker;
     private Map<DTNHost, List<SecretKey>> groupKeysPerSubscriber;
-    private Map<DTNHost, List<MergedInterval>> totalGroupsPerHost;
+    private Map<DTNHost, List<MergedInterval>> groupsPerHost;
 
     public KeysPerHostReport() {
         init();
@@ -26,7 +26,7 @@ public class KeysPerHostReport extends Report implements IKeyListener {
         pairKeysPerHost = new HashMap<>();
         groupKeysPerBroker = new HashMap<>();
         groupKeysPerSubscriber = new HashMap<>();
-        totalGroupsPerHost = new HashMap<>();
+        groupsPerHost = new HashMap<>();
     }
 
     @Override
@@ -41,7 +41,7 @@ public class KeysPerHostReport extends Report implements IKeyListener {
 
     @Override
     public void generatedGroups(DTNHost maker, MergedInterval mergedInterval) {
-        totalGroupsPerHost.computeIfAbsent(maker, k -> new ArrayList<>()).add(mergedInterval);
+        groupsPerHost.computeIfAbsent(maker, k -> new ArrayList<>()).add(mergedInterval);
     }
 
     @Override
@@ -55,14 +55,38 @@ public class KeysPerHostReport extends Report implements IKeyListener {
         }
     }
 
+    public int totalPairKeys(){
+        return pairKeysPerHost.values().stream()
+                .mapToInt(List::size)
+                .sum();
+    }
+
+    public int totalGroupsPerHost(){
+        return groupsPerHost.values().stream()
+                .mapToInt(List::size)
+                .sum();
+    }
+
+    public int totalGroupKeysPerSubscriber(){
+        return groupKeysPerSubscriber.values().stream()
+                .mapToInt(List::size)
+                .sum();
+    }
+
+    public int totalGroupKeysPerBroker(){
+        return groupKeysPerBroker.values().stream()
+                .mapToInt(List::size)
+                .sum();
+    }
+
     @Override
     public void done() {
         write("Message stats for scenario " + getScenarioName());
 
-        String statsText = "\ncreatedBrokerKeys : " + this.groupKeysPerBroker +
-                "\ncreatedSubscriberKeys : " + this.groupKeysPerSubscriber +
-                "\ncreatedPairKey : " + this.pairKeysPerHost +
-                "\ncreatedGroup : " + this.totalGroupsPerHost
+        String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
+                "\ncreatedSubscriberKeys : " + this.totalGroupKeysPerSubscriber() +
+                "\ncreatedPairKey : " + this.totalPairKeys() +
+                "\ncreatedGroup : " + this.totalGroupsPerHost()
                 ;
 
         write(statsText);
