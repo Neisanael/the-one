@@ -2,10 +2,7 @@ package routing;
 
 import GroupBased.PropertySettings;
 import core.*;
-import core.GroupBased.Broker;
-import core.GroupBased.PairKey;
-import core.GroupBased.Publisher;
-import core.GroupBased.Subscriber;
+import core.GroupBased.*;
 import routing.util.SubscriberKey;
 
 import javax.crypto.SecretKey;
@@ -16,6 +13,9 @@ import java.security.SecureRandom;
 import java.util.*;
 
 public class GrouperRouter extends ActiveRouter implements PropertySettings {
+
+    private List<IKeyListener> kListeners;
+
     public GrouperRouter(Settings s) {
         super(s);
         if (s.contains(MSG_TTL_S)) {
@@ -31,6 +31,7 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     protected GrouperRouter(GrouperRouter r) {
         super(r);
+        kListeners = new ArrayList<>();
     }
 
     @Override
@@ -96,32 +97,38 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
             }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
                 exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }
-
         }
     }
 
     private void exchangeSharedKey(DTNHost broker, DTNHost subscriberOrPublisher, BigInteger secretA, BigInteger secretB) throws Exception {
         if(subscriberOrPublisher instanceof Publisher){
-            PairKey subscriberPairKey = new PairKey();
-            subscriberPairKey.setSecretKey(convertToAESKey(secretA));
-            subscriberPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
-            subscriberPairKey.setTimeSecretKeyCreated(SimClock.getTime());
-            ((Publisher) subscriberOrPublisher).setPairKey(subscriberPairKey);
+            PairKey publisherPairKey = new PairKey();
+            publisherPairKey.setSecretKey(convertToAESKey(secretA));
+            publisherPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
+            publisherPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+            ((Publisher) subscriberOrPublisher).setPairKey(publisherPairKey);
+            for(IKeyListener kl : kListeners){
+                kl.keyPairCreated(publisherPairKey);
+            }
         }else if(subscriberOrPublisher instanceof Subscriber){
             PairKey subscriberPairKey = new PairKey();
             subscriberPairKey.setSecretKey(convertToAESKey(secretA));
             subscriberPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
             subscriberPairKey.setTimeSecretKeyCreated(SimClock.getTime());
             ((Subscriber) subscriberOrPublisher).setPairKey(subscriberPairKey);
+            for(IKeyListener kl : kListeners){
+                kl.keyPairCreated(subscriberPairKey);
+            }
         }
-
         PairKey brokerPairKey = new PairKey();
         brokerPairKey.setSecretKey(convertToAESKey(secretB));
         brokerPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
         brokerPairKey.setTimeSecretKeyCreated(SimClock.getTime());
         ((Broker) broker).addPairKey(brokerPairKey);
+        for(IKeyListener kl : kListeners){
+            kl.keyPairCreated(brokerPairKey);
+        }
     }
-
 
     private void updateKeysWith(DTNHost otherHost) throws Exception {
         if(otherHost instanceof Broker && this.getHost() instanceof Broker){
