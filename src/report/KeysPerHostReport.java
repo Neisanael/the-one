@@ -39,8 +39,6 @@ public class KeysPerHostReport extends Report implements IKeyListener {
 
     @Override
     public void generatedGroups(DTNHost maker, MergedInterval mergedInterval) {
-        System.out.println(groupsPerHost);
-        System.out.println(maker);
         groupsPerHost.computeIfAbsent(maker, k -> new ArrayList<>()).add(mergedInterval);
     }
 
