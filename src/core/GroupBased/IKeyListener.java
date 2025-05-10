@@ -8,7 +8,7 @@ public interface IKeyListener {
 
     public void groupKeyGeneratedByBroker(SecretKey key, DTNHost broker);
 
-    public void groupKeyGeneratedBySubscriber(SecretKey key, DTNHost subscriber);
+    public void openedMessage(SecretKey key, DTNHost subscriber);
 
     public void generatedGroups(DTNHost maker, MergedInterval mergedInterval);
 

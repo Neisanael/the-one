@@ -17,6 +17,7 @@ import java.util.Random;
 
 public class Subscriber extends DTNHost implements PropertySettings {
     private PairKey pairKey;
+    private List<IKeyListener> keyListeners;
 
     /**
      * Creates a new DTNHost.
@@ -32,11 +33,17 @@ public class Subscriber extends DTNHost implements PropertySettings {
     public Subscriber(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto, List<IKeyListener> keyLs) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto, keyLs);
         this.pairKey = new PairKey();
+        this.keyListeners = keyLs;
     }
 
     public Boolean openMessages(byte[] payload,byte[] val) {
         try {
             String value = decryptEvent(payload, decryptSecretKey(val, getPairKey().getSecretKey()));
+            if(this.keyListeners != null) {
+                for(IKeyListener kl : this.keyListeners) {
+                    kl.openedMessage(getPairKey().getSecretKey(), this);
+                }
+            }
             System.out.println(value);
             return true;
         } catch (Exception e) {

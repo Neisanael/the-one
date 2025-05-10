@@ -12,7 +12,7 @@ import java.util.Map;
 public class KeysPerHostReport extends Report implements IKeyListener {
     private Map<DTNHost, List<SecretKey>> pairKeysPerHost;
     private Map<DTNHost, List<SecretKey>> groupKeysPerBroker;
-    private Map<DTNHost, List<SecretKey>> groupKeysPerSubscriber;
+    private Map<DTNHost, List<SecretKey>> messageDecrypted;
     private Map<DTNHost, List<MergedInterval>> groupsPerHost;
 
     public KeysPerHostReport() {
@@ -23,7 +23,7 @@ public class KeysPerHostReport extends Report implements IKeyListener {
         super.init();
         pairKeysPerHost = new HashMap<>();
         groupKeysPerBroker = new HashMap<>();
-        groupKeysPerSubscriber = new HashMap<>();
+        messageDecrypted = new HashMap<>();
         groupsPerHost = new HashMap<>();
     }
 
@@ -33,8 +33,8 @@ public class KeysPerHostReport extends Report implements IKeyListener {
     }
 
     @Override
-    public void groupKeyGeneratedBySubscriber(SecretKey key, DTNHost subscriber) {
-        groupKeysPerSubscriber.computeIfAbsent(subscriber, k -> new ArrayList<>()).add(key);
+    public void openedMessage(SecretKey key, DTNHost subscriber) {
+        messageDecrypted.computeIfAbsent(subscriber, k -> new ArrayList<>()).add(key);
     }
 
     @Override
@@ -81,8 +81,8 @@ public class KeysPerHostReport extends Report implements IKeyListener {
                 .sum();
     }
 
-    public int totalGroupKeysPerSubscriber(){
-        return groupKeysPerSubscriber.values().stream()
+    public int totalMessageOpened(){
+        return messageDecrypted.values().stream()
                 .mapToInt(List::size)
                 .sum();
     }
@@ -98,7 +98,7 @@ public class KeysPerHostReport extends Report implements IKeyListener {
         write("Message stats for scenario " + getScenarioName());
 
         String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
-                "\ncreatedSubscriberKeys : " + this.totalGroupKeysPerSubscriber() +
+                "\ncreatedSubscriberKeys : " + this.totalMessageOpened() +
                 "\ncreatedPairKey : " + this.totalPairKeys() +
                 "\ncreatedGroup : " + this.totalGroupsPerHost() +
                 "\ncreatedPairKeyBySubscriber : " + this.totalSubscriberPairKeys() +

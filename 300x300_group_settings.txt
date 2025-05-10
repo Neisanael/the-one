@@ -73,12 +73,12 @@ Group1.bufferSize = 1024M
 
 # group2 specific settings
 Group2.groupID = publisher
-Group2.nrofHosts = 20
+Group2.nrofHosts = 5
 Group2.bufferSize = 15M
 
 # another group of pedestrians
 Group3.groupID = subscriber
-Group3.nrofHosts = 35
+Group3.nrofHosts = 5
 Group3.bufferSize = 25M
 
 ## Message creation parameters
@@ -92,7 +92,7 @@ Events1.interval = 25,35
 # Message sizes (500kB - 1MB)
 Events1.size = 500k,1M
 # range of message source/destination addresses
-Events1.hosts = 0,55
+Events1.hosts = 0,40
 # Message ID prefix
 Events1.prefix = M
 
