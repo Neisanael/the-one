@@ -12,6 +12,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.Vector;
 
+import javax.crypto.SecretKey;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
 import javax.swing.JButton;
@@ -21,6 +22,9 @@ import javax.swing.Timer;
 
 import core.ConnectionListener;
 import core.DTNHost;
+import core.GroupBased.IKeyListener;
+import core.GroupBased.MergedInterval;
+import core.GroupBased.PairKey;
 import core.Message;
 import core.MessageListener;
 import core.Settings;
@@ -31,7 +35,7 @@ import core.SimClock;
  */
 @SuppressWarnings("serial")
 public class EventLogPanel extends JPanel
-	implements ConnectionListener, MessageListener, ActionListener {
+	implements ConnectionListener, MessageListener, ActionListener, IKeyListener {
 
 	/** Event log panel settings namespace ({@value}) */
 	public static final String EL_PANEL_NS = "GUI.EventLogPanel";
@@ -82,6 +86,7 @@ public class EventLogPanel extends JPanel
 	private EventLogControl msgDeliveredCheck;
 	private EventLogControl msgDropCheck;
 	private EventLogControl msgAbortCheck;
+	private EventLogControl pairKeyCreatedCheck;
 
 	/**
 	 * Creates a new log panel
@@ -137,6 +142,7 @@ public class EventLogPanel extends JPanel
 		msgRemoveCheck = c.addControl("removed");
 		msgDropCheck = c.addControl("dropped");
 		msgAbortCheck = c.addControl("aborted");
+		pairKeyCreatedCheck = c.addControl("pair key created");
 		return c;
 	}
 
@@ -330,4 +336,23 @@ public class EventLogPanel extends JPanel
 			this.eventPanes.size() + " events";
 	}
 
+	@Override
+	public void groupKeyGeneratedByBroker(SecretKey key, DTNHost broker) {
+
+	}
+
+	@Override
+	public void groupKeyGeneratedBySubscriber(SecretKey key, DTNHost subscriber) {
+
+	}
+
+	@Override
+	public void generatedGroups(DTNHost maker, MergedInterval mergedInterval) {
+
+	}
+
+	@Override
+	public void keyPairCreated(PairKey pairKey) {
+		processEvent(pairKeyCreatedCheck, "Pair Key Created", pairKey.getHostThisKeyBelongsTo(), null, null);
+	}
 }

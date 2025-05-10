@@ -20,11 +20,10 @@ import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 
 public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     private List<MergedInterval> groups;
-    //private Map<DTNHost, SecretKey> publicSecretKey;
     private List<PairKey> pairKeys;
     private Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encteted KG
     private Map<SecretKey, List<DTNHost>> cachedEvents; //caching per group list of Subscriber
-
+    private List<IKeyListener> keyListeners;
     /**
      * Creates a new DTNHost.
      *
@@ -36,28 +35,24 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
      * @param mmProto      Prototype of the movement model of this host
      * @param mRouterProto Prototype of the message router of this host
      */
-    public Broker(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
-        super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
-        //publicSecretKey = new HashMap<>();
-        pairKeys = new ArrayList<>();
-        encryptedEventsGrouped = new HashMap<>();
-        cachedEvents = new HashMap<>();
+    public Broker(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto, List<IKeyListener> keyLs) {
+        super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto, keyLs);
+        this.pairKeys = new ArrayList<>();
+        this.encryptedEventsGrouped = new HashMap<>();
+        this.cachedEvents = new HashMap<>();
+        this.keyListeners = keyLs;
     }
-
-    /*public Map<DTNHost, SecretKey> getPublicSecretKey() {
-        return publicSecretKey;
-    }
-
-    public void setPublicSecretKey(Map<DTNHost, SecretKey> publicSecretKey) {
-        this.publicSecretKey = publicSecretKey;
-    }
-
-    public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
-        this.publicSecretKey.put(host, publicSecretKey);
-    }*/
 
     public void makeGroups(){
         groups = MakeGroup();
+        if (this.keyListeners != null) {
+            for (IKeyListener kl : this.keyListeners) {
+                for(MergedInterval mi : groups){
+                    kl.generatedGroups(this, mi);
+                }
+
+            }
+        }
         GroupedEvents();
     }
 

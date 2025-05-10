@@ -11,6 +11,7 @@ import core.Application;
 import core.Connection;
 import core.DTNHost;
 import core.GroupBased.Broker;
+import core.GroupBased.IKeyListener;
 import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import core.Message;
@@ -157,7 +158,7 @@ public abstract class MessageRouter implements PropertySettings {
 	 * @param host The host this router is in
 	 * @param mListeners The message listeners
 	 */
-	public void init(DTNHost host, List<MessageListener> mListeners) {
+	public void init(DTNHost host, List<MessageListener> mListeners, List<IKeyListener> kListeners) {
 		this.incomingMessages = new HashMap<String, Message>();
 		this.messages = new HashMap<String, Message>();
 		this.deliveredMessages = new HashMap<String, Message>();

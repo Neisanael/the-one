@@ -5,6 +5,7 @@
 package core;
 
 import core.GroupBased.Broker;
+import core.GroupBased.IKeyListener;
 import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import input.EventQueue;
@@ -121,6 +122,8 @@ public class SimScenario implements Serializable {
 	/** Global application event listeners */
 	private List<ApplicationListener> appListeners;
 
+	private List<IKeyListener> keyListeners;
+
 	static {
 		DTNSim.registerForReset(SimScenario.class.getCanonicalName());
 		reset();
@@ -154,6 +157,7 @@ public class SimScenario implements Serializable {
 		this.movementListeners = new ArrayList<MovementListener>();
 		this.updateListeners = new ArrayList<UpdateListener>();
 		this.appListeners = new ArrayList<ApplicationListener>();
+		this.keyListeners = new ArrayList<IKeyListener>();
 		this.eqHandler = new EventQueueHandler();
 
 		/* TODO: check size from movement models */
@@ -269,6 +273,10 @@ public class SimScenario implements Serializable {
 	 */
 	public void addMessageListener(MessageListener ml){
 		this.messageListeners.add(ml);
+	}
+
+	public void addKeyListener(IKeyListener kl){
+		this.keyListeners.add(kl);
 	}
 
 	/**
@@ -400,13 +408,13 @@ public class SimScenario implements Serializable {
 				// new instances of movement model and message router
 				DTNHost host;
 				if (gid.contains("publisher")) {
-					host = new Publisher(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto);
+					host = new Publisher(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto, this.keyListeners);
 				} else if (gid.contains("subscriber")) {
-					host = new Subscriber(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto);
+					host = new Subscriber(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto, this.keyListeners);
 				} else if (gid.contains("broker")) {
-					host = new Broker(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto);
+					host = new Broker(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto, this.keyListeners);
 				} else {
-					host = new DTNHost(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto);
+					host = new DTNHost(this.messageListeners, this.movementListeners, gid, interfaces, comBus, mmProto, mRouterProto, this.keyListeners);
 				}
 				hosts.add(host);
 			}

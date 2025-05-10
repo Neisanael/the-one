@@ -16,7 +16,6 @@ import java.util.Map;
 import java.util.Random;
 
 public class Subscriber extends DTNHost implements PropertySettings {
-    //private final Map<DTNHost, SecretKey> publicSecretKey;
     private PairKey pairKey;
 
     /**
@@ -30,19 +29,10 @@ public class Subscriber extends DTNHost implements PropertySettings {
      * @param mmProto      Prototype of the movement model of this host
      * @param mRouterProto Prototype of the message router of this host
      */
-    public Subscriber(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto) {
-        super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto);
-        //publicSecretKey = new HashMap<>();
-        pairKey = new PairKey();
+    public Subscriber(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto, List<IKeyListener> keyLs) {
+        super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto, keyLs);
+        this.pairKey = new PairKey();
     }
-
-   /* public Map<DTNHost, SecretKey> getPublicSecretKey() {
-        return publicSecretKey;
-    }
-
-    public void addPublicSecretKey(DTNHost host, SecretKey publicSecretKey) {
-        this.publicSecretKey.put(host, publicSecretKey);
-    }*/
 
     public Boolean openMessages(byte[] payload,byte[] val) {
         try {

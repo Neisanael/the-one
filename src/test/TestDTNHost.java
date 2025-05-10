@@ -6,6 +6,7 @@ package test;
 
 import java.util.List;
 
+import core.GroupBased.IKeyListener;
 import routing.PassiveRouter;
 import core.Coord;
 import core.DTNHost;
@@ -33,13 +34,8 @@ public class TestDTNHost extends DTNHost {
 	public DTNHost transferredFrom;
 
 
-	public TestDTNHost(List<NetworkInterface> li,
-			ModuleCommunicationBus comBus, Settings testSettings) {
-		super(null,null,"TST", li, comBus,
-				new StationaryMovement(new Coord(0,0)),
-				new PassiveRouter(
-						(testSettings == null ? new TestSettings() :
-							testSettings)));
+	public TestDTNHost(List<NetworkInterface> li, ModuleCommunicationBus comBus, Settings testSettings) {
+		super(null,null,"TST", li, comBus, new StationaryMovement(new Coord(0,0)), new PassiveRouter((testSettings == null ? new TestSettings() : testSettings)), null);
 	}
 
 	@Override

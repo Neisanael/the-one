@@ -8,6 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+import core.GroupBased.IKeyListener;
 import movement.MovementModel;
 import movement.Path;
 import routing.MessageRouter;
@@ -33,6 +34,7 @@ public class DTNHost implements Comparable<DTNHost> {
 	private String name;
 	private List<MessageListener> msgListeners;
 	private List<MovementListener> movListeners;
+	private List<IKeyListener> keyListeners;
 	private List<NetworkInterface> net;
 	private ModuleCommunicationBus comBus;
 
@@ -54,7 +56,7 @@ public class DTNHost implements Comparable<DTNHost> {
 			List<MovementListener> movLs,
 			String groupId, List<NetworkInterface> interf,
 			ModuleCommunicationBus comBus,
-			MovementModel mmProto, MessageRouter mRouterProto) {
+			MovementModel mmProto, MessageRouter mRouterProto, List<IKeyListener> keyLs) {
 		this.comBus = comBus;
 		this.location = new Coord(0,0);
 		this.address = getNextAddress();
@@ -72,6 +74,7 @@ public class DTNHost implements Comparable<DTNHost> {
 
 		this.msgListeners = msgLs;
 		this.movListeners = movLs;
+		this.keyListeners = keyLs;
 
 		// create instances by replicating the prototypes
 		this.movement = mmProto.replicate();
@@ -132,7 +135,7 @@ public class DTNHost implements Comparable<DTNHost> {
 	 * @param router The router to set
 	 */
 	private void setRouter(MessageRouter router) {
-		router.init(this, msgListeners);
+		router.init(this, msgListeners, this.keyListeners);
 		this.router = router;
 	}
 

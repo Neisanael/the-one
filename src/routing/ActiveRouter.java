@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Random;
 
+import core.GroupBased.IKeyListener;
 import routing.util.EnergyModel;
 import routing.util.MessageTransferAcceptPolicy;
 import routing.util.RoutingInfo;
@@ -80,8 +81,8 @@ public abstract class ActiveRouter extends MessageRouter {
 	}
 
 	@Override
-	public void init(DTNHost host, List<MessageListener> mListeners) {
-		super.init(host, mListeners);
+	public void init(DTNHost host, List<MessageListener> mListeners, List<IKeyListener> kListeners) {
+		super.init(host, mListeners, kListeners);
 		this.sendingConnections = new ArrayList<Connection>(1);
 		this.lastTtlCheck = 0;
 	}

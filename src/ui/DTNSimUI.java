@@ -6,6 +6,7 @@ package ui;
 
 import java.util.Vector;
 
+import core.GroupBased.IKeyListener;
 import report.Report;
 import core.ApplicationListener;
 import core.ConnectionListener;
@@ -153,6 +154,8 @@ public abstract class DTNSimUI {
 		}
 		if (r instanceof ApplicationListener) {
 			scen.addApplicationListener((ApplicationListener)r);
+		} if(r instanceof IKeyListener){
+			scen.addKeyListener((IKeyListener) r);
 		}
 
 		this.reports.add(r);

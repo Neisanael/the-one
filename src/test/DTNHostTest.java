@@ -3,6 +3,7 @@ package test;
 
 import core.Coord;
 import core.DTNHost;
+import core.GroupBased.IKeyListener;
 import core.MessageListener;
 import core.MovementListener;
 import core.NetworkInterface;
@@ -61,7 +62,8 @@ public class DTNHostTest extends TestCase {
             new ArrayList<NetworkInterface>(),
             null,
             makeMovementModel(),
-            makeMessageRouter());
+            makeMessageRouter(),
+            new ArrayList<IKeyListener>());
 
     // Tests
     assertFalse("Radio reported as active.", host.isRadioActive());

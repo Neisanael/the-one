@@ -7,6 +7,7 @@ package test;
 import java.util.ArrayList;
 import java.util.List;
 
+import core.GroupBased.IKeyListener;
 import movement.MovementModel;
 import routing.MessageRouter;
 import routing.PassiveRouter;
@@ -24,6 +25,7 @@ public class TestUtils {
 
 	private List<ConnectionListener> conListeners;
 	private List<MessageListener> msgListeners;
+	private List<IKeyListener> keyListeners;
 	private String groupId = "h";
 	private List<DTNHost> allHosts;
 	private MessageRouter mr;
@@ -114,7 +116,7 @@ public class TestUtils {
 		List<NetworkInterface> li = new ArrayList<NetworkInterface>();
 		li.add(ni);
 		DTNHost host = new DTNHost(msgListeners, null, groupId,
-				li, comBus, mmProto, mr);
+				li, comBus, mmProto, mr, keyListeners);
 		if (name != null) {
 			host.setName(name);
 		}

@@ -1,9 +1,7 @@
 package report;
 
 import core.DTNHost;
-import core.GroupBased.IKeyListener;
-import core.GroupBased.MergedInterval;
-import core.GroupBased.PairKey;
+import core.GroupBased.*;
 
 import javax.crypto.SecretKey;
 import java.util.ArrayList;
@@ -41,6 +39,8 @@ public class KeysPerHostReport extends Report implements IKeyListener {
 
     @Override
     public void generatedGroups(DTNHost maker, MergedInterval mergedInterval) {
+        System.out.println(groupsPerHost);
+        System.out.println(maker);
         groupsPerHost.computeIfAbsent(maker, k -> new ArrayList<>()).add(mergedInterval);
     }
 
@@ -60,6 +60,22 @@ public class KeysPerHostReport extends Report implements IKeyListener {
                 .mapToInt(List::size)
                 .sum();
     }
+
+    public int totalPairKeysByHostType(Class<?> hostType) {
+        return pairKeysPerHost.entrySet().stream()
+                .filter(entry -> hostType.isInstance(entry.getKey()))
+                .mapToInt(entry -> entry.getValue().size())
+                .sum();
+    }
+
+    public int totalPublisherPairKeys() {
+        return totalPairKeysByHostType(Publisher.class);
+    }
+
+    public int totalSubscriberPairKeys() {
+        return totalPairKeysByHostType(Subscriber.class);
+    }
+
 
     public int totalGroupsPerHost(){
         return groupsPerHost.values().stream()
@@ -86,7 +102,9 @@ public class KeysPerHostReport extends Report implements IKeyListener {
         String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
                 "\ncreatedSubscriberKeys : " + this.totalGroupKeysPerSubscriber() +
                 "\ncreatedPairKey : " + this.totalPairKeys() +
-                "\ncreatedGroup : " + this.totalGroupsPerHost()
+                "\ncreatedGroup : " + this.totalGroupsPerHost() +
+                "\ncreatedPairKeyBySubscriber : " + this.totalSubscriberPairKeys() +
+                "\ncreatedPairKeyByPublisher : " + this.totalPublisherPairKeys()
                 ;
 
         write(statsText);

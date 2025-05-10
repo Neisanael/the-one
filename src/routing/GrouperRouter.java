@@ -31,7 +31,12 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     protected GrouperRouter(GrouperRouter r) {
         super(r);
-        kListeners = new ArrayList<>();
+    }
+
+    @Override
+    public void init(DTNHost host, List<MessageListener> mListeners, List<IKeyListener> kListeners) {
+        super.init(host, mListeners, kListeners);
+        this.kListeners = kListeners;
     }
 
     @Override
@@ -128,6 +133,10 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
         for(IKeyListener kl : kListeners){
             kl.keyPairCreated(brokerPairKey);
         }
+    }
+
+    private void addToKeyListener(IKeyListener keyListener){
+        this.kListeners.add(keyListener);
     }
 
     private void updateKeysWith(DTNHost otherHost) throws Exception {
