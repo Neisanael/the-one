@@ -59,6 +59,7 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
                 from.createNewMessage(m);
             }
         } else if (from instanceof Broker && to instanceof Publisher){
+            ((Broker) from).encryptGroupedEvents();
             if(!((Broker) from).getEncryptedEventsGrouped().isEmpty()){
                 Message m = new Message(from, to, this.id, this.size);
                 m.addProperty(ENCRYPTED, ((Broker) from).getEncryptedEventsGrouped());

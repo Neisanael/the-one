@@ -50,13 +50,11 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                 for(MergedInterval mi : groups){
                     kl.generatedGroups(this, mi);
                 }
-
             }
         }
-        GroupedEvents();
     }
 
-    private void GroupedEvents() {
+    public void encryptGroupedEvents() {
         Set<EventData> restoredSet = new HashSet<>();
         for(Message msg : getMessageCollection()){
             if(msg.getProperty(EVENTS) != null && msg.getProperty(EVENTS) instanceof Set<?>){
@@ -83,7 +81,7 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                                 .orElse(null);
                         for (DTNHost subscriber : group.getSenders()) {
                             for(PairKey pairKey : getPairKeys()){
-                                if(pairKey.equals(subscriber)){
+                                if(pairKey.getHostThisKeyBelongsTo().equals(subscriber)){
                                     for(EventData ed : restoredSet){
                                         if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
                                             encryptedKeyGroupPerHost.add(encryptEvent(String.valueOf(generatedGroupKey), pairKey.getSecretKey()));
@@ -103,11 +101,18 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                         List<byte[]> encryptedKeyGroupPerHost = new ArrayList<>();
                         for (DTNHost subscriber : group.getSenders()) {
                             for(PairKey pairKey : getPairKeys()){
-                                if(pairKey.equals(subscriber)){
+                                if(pairKey.getHostThisKeyBelongsTo().equals(subscriber)){
                                     for(EventData ed : restoredSet){
                                         if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
                                             cachedHost.add(subscriber);
                                             encryptedKeyGroupPerHost.add(encryptKey(generatedGroupKey, pairKey.getSecretKey()));
+                                            if (this.keyListeners != null) {
+                                                for (IKeyListener kl : this.keyListeners) {
+                                                    for(MergedInterval mi : groups){
+                                                        kl.groupKeyGeneratedByBroker(generatedGroupKey, this);
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
