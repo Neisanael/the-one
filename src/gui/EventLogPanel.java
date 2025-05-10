@@ -86,6 +86,10 @@ public class EventLogPanel extends JPanel
 	private EventLogControl msgDeliveredCheck;
 	private EventLogControl msgDropCheck;
 	private EventLogControl msgAbortCheck;
+	private EventLogControl msgEventCreatedCheck;
+	private EventLogControl msgFilterCreatedCheck;
+	private EventLogControl msgEncryptedEventCheck;
+	private EventLogControl msgDecryptedEventCheck;
 	private EventLogControl pairKeyCreatedCheck;
 
 	/**
@@ -142,7 +146,11 @@ public class EventLogPanel extends JPanel
 		msgRemoveCheck = c.addControl("removed");
 		msgDropCheck = c.addControl("dropped");
 		msgAbortCheck = c.addControl("aborted");
-		c.addControl("grouping");
+		c.addHeading("groupings");
+		msgEventCreatedCheck = c.addControl("event created");
+		msgFilterCreatedCheck = c.addControl("filter created");
+		msgEncryptedEventCheck = c.addControl("encrypted event created");
+		msgDecryptedEventCheck = c.addControl("decrypted event created");
 		pairKeyCreatedCheck = c.addControl("pair key created");
 		return c;
 	}
@@ -338,13 +346,28 @@ public class EventLogPanel extends JPanel
 	}
 
 	@Override
+	public void eventsCreated(Message event) {
+		processEvent(msgEventCreatedCheck, "EVENT Message created ", event.getFrom(), event.getTo(), event);
+	}
+
+	@Override
+	public void filtersCreated(Message filter) {
+		processEvent(msgFilterCreatedCheck, "FILTER Message created ", filter.getFrom(), filter.getTo(), filter);
+	}
+
+	@Override
+	public void encryptedEventsCreated(Message encryptedEvent) {
+		processEvent(msgEncryptedEventCheck, "ENCRYPTED Message created ", encryptedEvent.getFrom(), encryptedEvent.getTo(), encryptedEvent);
+	}
+
+	@Override
 	public void groupKeyGeneratedByBroker(SecretKey key, DTNHost broker) {
 
 	}
 
 	@Override
 	public void openedMessage(SecretKey key, DTNHost subscriber) {
-
+		processEvent(msgDecryptedEventCheck, "Message Decrypted by ", subscriber, null, null);
 	}
 
 	@Override

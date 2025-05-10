@@ -10,10 +10,7 @@ import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
 
 public class Subscriber extends DTNHost implements PropertySettings {
     private PairKey pairKey;
@@ -79,5 +76,20 @@ public class Subscriber extends DTNHost implements PropertySettings {
 
     public void setPairKey(PairKey pairKey) {
         this.pairKey = pairKey;
+    }
+
+    /**
+     * Creates a new message to this host's router
+     * @param m The message to create
+     */
+    public void createNewMessage(Message m) {
+        if(m.getProperty(FILTERS) != null){
+            if(this.keyListeners != null) {
+                for(IKeyListener kl : this.keyListeners) {
+                    kl.filtersCreated(m);
+                }
+            }
+        }
+        this.getRouter().createNewMessage(m);
     }
 }

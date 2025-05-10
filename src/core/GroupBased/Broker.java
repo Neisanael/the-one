@@ -312,4 +312,19 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
     public void addPairKey(PairKey pairKey){
         this.pairKeys.add(pairKey);
     }
+
+    /**
+     * Creates a new message to this host's router
+     * @param m The message to create
+     */
+    public void createNewMessage(Message m) {
+        if(m.getProperty(ENCRYPTED) != null){
+            if(this.keyListeners != null) {
+                for(IKeyListener kl : this.keyListeners) {
+                    kl.encryptedEventsCreated(m);
+                }
+            }
+        }
+        this.getRouter().createNewMessage(m);
+    }
 }

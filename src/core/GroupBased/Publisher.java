@@ -1,5 +1,6 @@
 package core.GroupBased;
 
+import GroupBased.PropertySettings;
 import core.*;
 import movement.MovementModel;
 import routing.MessageRouter;
@@ -10,8 +11,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class Publisher extends DTNHost {
+public class Publisher extends DTNHost implements PropertySettings {
     private PairKey pairKey;
+    private List<IKeyListener> keyListeners;
     /**
      * Creates a new DTNHost.
      *
@@ -26,6 +28,7 @@ public class Publisher extends DTNHost {
     public Publisher(List<MessageListener> msgLs, List<MovementListener> movLs, String groupId, List<NetworkInterface> interf, ModuleCommunicationBus comBus, MovementModel mmProto, MessageRouter mRouterProto, List<IKeyListener> keyLs) {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto, keyLs);
         this.pairKey = new PairKey();
+        this.keyListeners = keyLs;
     }
 
     public PairKey getPairKey() {
@@ -34,5 +37,20 @@ public class Publisher extends DTNHost {
 
     public void setPairKey(PairKey pairKey) {
         this.pairKey = pairKey;
+    }
+
+    /**
+     * Creates a new message to this host's router
+     * @param m The message to create
+     */
+    public void createNewMessage(Message m) {
+        if(m.getProperty(EVENTS) != null){
+            if(this.keyListeners != null) {
+                for(IKeyListener kl : this.keyListeners) {
+                    kl.eventsCreated(m);
+                }
+            }
+        }
+        this.getRouter().createNewMessage(m);
     }
 }
