@@ -108,9 +108,7 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                                             encryptedKeyGroupPerHost.add(encryptKey(generatedGroupKey, pairKey.getSecretKey()));
                                             if (this.keyListeners != null) {
                                                 for (IKeyListener kl : this.keyListeners) {
-                                                    for(MergedInterval mi : groups){
-                                                        kl.groupKeyGeneratedByBroker(generatedGroupKey, this);
-                                                    }
+                                                    kl.groupKeyGeneratedByBroker(generatedGroupKey, this);
                                                 }
                                             }
                                         }
