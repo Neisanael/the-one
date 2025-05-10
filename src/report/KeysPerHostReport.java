@@ -98,7 +98,7 @@ public class KeysPerHostReport extends Report implements IKeyListener {
         write("Message stats for scenario " + getScenarioName());
 
         String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
-                "\ncreatedSubscriberKeys : " + this.totalMessageOpened() +
+                "\nopenedMessages : " + this.totalMessageOpened() +
                 "\ncreatedPairKey : " + this.totalPairKeys() +
                 "\ncreatedGroup : " + this.totalGroupsPerHost() +
                 "\ncreatedPairKeyBySubscriber : " + this.totalSubscriberPairKeys() +
