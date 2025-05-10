@@ -342,7 +342,7 @@ public class EventLogPanel extends JPanel
 	}
 
 	@Override
-	public void groupKeyGeneratedBySubscriber(SecretKey key, DTNHost subscriber) {
+	public void openedMessage(SecretKey key, DTNHost subscriber) {
 
 	}
 
