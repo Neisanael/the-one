@@ -142,6 +142,7 @@ public class EventLogPanel extends JPanel
 		msgRemoveCheck = c.addControl("removed");
 		msgDropCheck = c.addControl("dropped");
 		msgAbortCheck = c.addControl("aborted");
+		c.addControl("grouping");
 		pairKeyCreatedCheck = c.addControl("pair key created");
 		return c;
 	}

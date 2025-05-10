@@ -70,6 +70,7 @@ public class DTNSimGUI extends DTNSimUI {
 
 		scen.addMessageListener(eventLogPanel);
 		scen.addConnectionListener(eventLogPanel);
+		scen.addKeyListener(eventLogPanel);
 
 		if (scen.getMap() != null ) {
 			field.setMap(scen.getMap());
