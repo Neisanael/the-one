@@ -10,6 +10,7 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.Set;
 import java.util.Vector;
 
 import javax.crypto.SecretKey;
@@ -378,5 +379,10 @@ public class EventLogPanel extends JPanel
 	@Override
 	public void keyPairCreated(PairKey pairKey) {
 		processEvent(pairKeyCreatedCheck, "Pair Key Created", pairKey.getHostThisKeyBelongsTo(), null, null);
+	}
+
+	@Override
+	public void generationLoad(Set<Message> messages) {
+
 	}
 }

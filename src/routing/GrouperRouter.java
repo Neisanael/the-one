@@ -243,6 +243,16 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     private void handleBrokerTransfer() {
         ((Broker) this.getHost()).makeGroups();
+        Set<Message> setFilterMsg = new HashSet<>();
+        for(Message msg : getMessageCollection()){
+            if(msg.getProperty(FILTERS) != null){
+                setFilterMsg.add(msg);
+            }
+        }
+
+        for (IKeyListener listener : kListeners) {
+            listener.generationLoad(setFilterMsg);
+        }
     }
 
     private void handleSubscriberTransfer(Message msg) {
