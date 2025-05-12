@@ -6,7 +6,6 @@ package test;
 
 import java.util.List;
 
-import core.GroupBased.IKeyListener;
 import routing.PassiveRouter;
 import core.Coord;
 import core.DTNHost;

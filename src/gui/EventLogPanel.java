@@ -22,9 +22,9 @@ import javax.swing.Timer;
 
 import core.ConnectionListener;
 import core.DTNHost;
-import core.GroupBased.IKeyListener;
-import core.GroupBased.MergedInterval;
-import core.GroupBased.PairKey;
+import GroupBased.IKeyListener;
+import GroupBased.Model.MergedInterval;
+import GroupBased.Model.PairKey;
 import core.Message;
 import core.MessageListener;
 import core.Settings;

@@ -1,29 +1,25 @@
 package core.GroupBased;
 
-import GroupBased.Model.EventData;
-import GroupBased.Model.FilterData;
-import GroupBased.PropertySettings;
+import GroupBased.*;
+import GroupBased.Model.*;
 import core.*;
 import movement.MovementModel;
 import routing.MessageRouter;
-import routing.util.SubscriberKey;
-
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 
-public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
+public class Broker extends DTNHost implements PropertySettings{
     private List<MergedInterval> groups;
-    private List<PairKey> pairKeys;
-    private Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encteted KG
-    private Map<SecretKey, List<DTNHost>> cachedEvents; //caching per group list of Subscriber
-    private List<IKeyListener> keyListeners;
+    private final List<PairKey> pairKeys;
+    private final Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encrypted KG\
+    private final List<IKeyListener> keyListeners;
+    private Set<KeyCache> keyCaches;
     /**
      * Creates a new DTNHost.
      *
@@ -39,91 +35,144 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         super(msgLs, movLs, groupId, interf, comBus, mmProto, mRouterProto, keyLs);
         this.pairKeys = new ArrayList<>();
         this.encryptedEventsGrouped = new HashMap<>();
-        this.cachedEvents = new HashMap<>();
+        this.groups = new ArrayList<>();
         this.keyListeners = keyLs;
+        this.keyCaches = new HashSet<>();
     }
 
     public void makeGroups(){
-        groups = MakeGroup();
-        if (this.keyListeners != null) {
-            for (IKeyListener kl : this.keyListeners) {
-                for(MergedInterval mi : groups){
-                    kl.generatedGroups(this, mi);
-                }
+        groups = mergedSubscriberFilters();
+
+        if (keyListeners != null) {
+            groups.forEach(group ->
+                    keyListeners.forEach(kl ->
+                            kl.generatedGroups(this, group)
+                    )
+            );
+        }
+    }
+
+    public void processGroup(){
+        Set<EventData> events = extractEventsFromMessages();
+        if (groups == null || events.isEmpty()) return;
+        for (MergedInterval group : groups) {
+            if (hasMatchingEvents(events, group)) {
+                handleGroupEncryption(group);
             }
         }
     }
 
-    public void encryptGroupedEvents() {
-        Set<EventData> restoredSet = new HashSet<>();
-        for(Message msg : getMessageCollection()){
-            if(msg.getProperty(EVENTS) != null && msg.getProperty(EVENTS) instanceof Set<?>){
+    private Set<EventData> extractEventsFromMessages() {
+        Set<EventData> events = new HashSet<>();
+        for (Message msg : getMessageCollection()) {
+            if (msg.getProperty(EVENTS) instanceof Set<?> eventSet) {
                 try {
-                    restoredSet = (Set<EventData>) msg.getProperty(EVENTS);
+                    events.addAll((Set<EventData>)eventSet);
                 } catch (ClassCastException e) {
-                    System.err.println("Failed to cast - wrong generic type");
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
+                    System.err.println("Event type mismatch in message");
                 }
+            }
+        }
+        return events;
+    }
+
+    private boolean hasMatchingEvents(Set<EventData> events, MergedInterval group) {
+        return events.stream()
+                .anyMatch(e -> e.getNum() >= group.getStart() && e.getNum() <= group.getEnd());
+    }
+
+    private void handleGroupEncryption(MergedInterval group) {
+        Optional<SecretKey> existingKey = findCachedKey(group.getSenders());
+
+        if (existingKey.isEmpty()) {
+            generateAndCacheKey(group);
+        }
+    }
+
+    private Optional<SecretKey> findCachedKey(Set<DTNHost> senders) {
+
+        return keyCaches.stream()
+                .filter(entry -> entry.getSenders().equals(senders))
+                .map(KeyCache::getSecretKey)
+                .findFirst();
+    }
+
+    private void generateAndCacheKey(MergedInterval group) {
+        try {
+            SecretKey newKey = generateAESKey(256);
+            KeyCache kc = new KeyCache();
+            kc.setSenders(group.getSenders());
+            kc.setSecretKey(newKey);
+            kc.setTimeCreated(SimClock.getTime());
+            keyCaches.add(kc);
+            notifyKeyGeneration(newKey);
+        } catch (Exception e) {
+            System.err.println("Key generation failed: " + e.getMessage());
+        }
+    }
+
+    private void notifyKeyGeneration(SecretKey key) {
+        if (keyListeners != null) {
+            keyListeners.forEach(kl ->
+                    kl.groupKeyGeneratedByBroker(key, this)
+            );
+        }
+    }
+
+    public Map<byte[], Set<byte[]>> encryptEventGroups() {
+        Map<byte[], Set<byte[]>> result = new HashMap<>();
+        for (MergedInterval group : groups) {
+            SecretKey groupKey = findMatchingKey(keyCaches, group.getSenders());
+            if (groupKey == null) continue;
+            try {
+                byte[] encryptedEvent = encryptEvent(generateLoremIpsum(5), groupKey);
+                Set<byte[]> encryptedKeys = new HashSet<>();
+                for (DTNHost subscriber : group.getSenders()) {
+                    for (PairKey pairKey : pairKeys) {
+                        if (pairKey.getHostThisKeyBelongsTo().equals(subscriber)) {
+                            encryptedKeys.add(encryptKey(groupKey, pairKey.getSecretKey()));
+                            break;
+                        }
+                    }
+                }
+
+                if (!encryptedKeys.isEmpty()) {
+                    result.put(encryptedEvent, encryptedKeys);
+                }
+            } catch (Exception e) {
+                System.err.println("Encryption failed for group: " + e.getMessage());
             }
         }
 
-        if(getGroups() != null){
-            for(MergedInterval group : getGroups()){
-                if(cachedEvents.values().stream()
-                        .anyMatch(list -> new HashSet<>(list).equals(group.getSenders()))){
-                    try{
-                        List<byte[]> encryptedKeyGroupPerHost = new ArrayList<>();
-                        SecretKey generatedGroupKey = cachedEvents.entrySet().stream()
-                                .filter(entry -> new HashSet<>(entry.getValue()).equals(group.getSenders()))
-                                .map(Map.Entry::getKey)
-                                .findFirst()
-                                .orElse(null);
-                        for (DTNHost subscriber : group.getSenders()) {
-                            for(PairKey pairKey : getPairKeys()){
-                                if(pairKey.getHostThisKeyBelongsTo().equals(subscriber)){
-                                    for(EventData ed : restoredSet){
-                                        if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
-                                            encryptedKeyGroupPerHost.add(encryptEvent(String.valueOf(generatedGroupKey), pairKey.getSecretKey()));
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        encryptedEventsGrouped.put(encryptEvent(generateLoremIpsum(5), generatedGroupKey), encryptedKeyGroupPerHost);
-                    }catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }else {
-                    try{
-                        SecretKey generatedGroupKey = generateAESKey(256);
-                        List<DTNHost> cachedHost = new ArrayList<>();
-                        List<byte[]> encryptedKeyGroupPerHost = new ArrayList<>();
-                        for (DTNHost subscriber : group.getSenders()) {
-                            for(PairKey pairKey : getPairKeys()){
-                                if(pairKey.getHostThisKeyBelongsTo().equals(subscriber)){
-                                    for(EventData ed : restoredSet){
-                                        if(isInRange(ed.getNum(), group.getStart(), group.getEnd())){
-                                            cachedHost.add(subscriber);
-                                            encryptedKeyGroupPerHost.add(encryptKey(generatedGroupKey, pairKey.getSecretKey()));
-                                            if (this.keyListeners != null) {
-                                                for (IKeyListener kl : this.keyListeners) {
-                                                    kl.groupKeyGeneratedByBroker(generatedGroupKey, this);
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        encryptedEventsGrouped.put(encryptEvent(generateLoremIpsum(5), generatedGroupKey), encryptedKeyGroupPerHost);
-                        cachedEvents.put(generatedGroupKey, cachedHost);
-                    }catch (Exception e) {
-                        throw new RuntimeException(e);
-                    }
-                }
+        return result;
+    }
+
+    public SecretKey findMatchingKey(Set<KeyCache> cachedEvents, Set<DTNHost> targetHosts) {
+        for (KeyCache entry : cachedEvents) {
+            Set<DTNHost> currentHosts = entry.getSenders();
+            if (currentHosts.equals(targetHosts)) {
+                return entry.getSecretKey();
             }
         }
+        return null; // not found
+    }
+
+
+    public byte[] encryptEvent(String data, SecretKey key) throws Exception {
+        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
+        cipher.init(Cipher.ENCRYPT_MODE, key);
+        return cipher.doFinal(data.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public Set<KeyCache> getKeyCaches() {
+        return keyCaches;
+    }
+
+    public boolean deleteKeyCache(KeyCache keyCache) {
+        if (keyCaches == null || keyCaches.isEmpty()) {
+            return false;
+        }
+        return keyCaches.remove(keyCache);
     }
 
     public static SecretKey generateAESKey(int keySize) throws Exception {
@@ -138,16 +187,6 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         return cipher.doFinal(keyToEncrypt.getEncoded());
     }
 
-    private byte[] encryptEvent(String event, SecretKey key) throws Exception {
-        return encryptAES(event.getBytes(StandardCharsets.UTF_8), key);
-    }
-
-    private static byte[] encryptAES(byte[] data, SecretKey key) throws Exception {
-        Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding"); // For demo; use GCM or CBC in production
-        cipher.init(Cipher.ENCRYPT_MODE, key);
-        return cipher.doFinal(data);
-    }
-
     public Map<byte[], List<byte[]>> getEncryptedEventsGrouped() {
         return encryptedEventsGrouped;
     }
@@ -156,14 +195,8 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         return groups;
     }
 
-    public static boolean isInRange(int value, int start, int end) {
-        return value >= start && value <= end;
-    }
-
-    private List<MergedInterval> MakeGroup() {
-        // First collect all FilterData with their senders
+    private List<MergedInterval> mergedSubscriberFilters() {
         List<FilterDataWithSender> allFilters = new ArrayList<>();
-
         for (Message msg : getMessageCollection()) {
             if (msg.getProperty(FILTERS) != null && msg.getProperty(FILTERS) instanceof Set<?>) {
                 try {
@@ -171,7 +204,6 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
                     for (FilterData fd : restoredSet) {
                         allFilters.add(new FilterDataWithSender(fd, msg.getFrom()));
                     }
-                    //System.out.println("Message from " + msg.getFrom() + " has filters: " + restoredSet);
                 } catch (ClassCastException e) {
                     System.err.println("Failed to cast - wrong generic type");
                 }
@@ -179,82 +211,30 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         }
 
         if (allFilters.isEmpty()) {
-            //System.out.println("No filters found in any messages");
             return Collections.emptyList();
         }
-
-        // Group by issue first (true/false)
         Map<Boolean, List<FilterDataWithSender>> groupedByIssue = allFilters.stream()
-                .collect(Collectors.groupingBy(fws -> fws.filterData.getIssue()));
-
-        // Combined result list
+                .collect(Collectors.groupingBy(fws -> fws.getFilterData().getIssue()));
         List<MergedInterval> combinedResults = new ArrayList<>();
-
-        // Process true and false groups separately but combine results
         for (Map.Entry<Boolean, List<FilterDataWithSender>> entry : groupedByIssue.entrySet()) {
-            boolean issue = entry.getKey();
             List<FilterDataWithSender> filters = entry.getValue();
-
-            //System.out.println("\nProcessing issue = " + issue);
-
-            // Sort intervals by start time
-            filters.sort(Comparator.comparingInt(fws -> fws.filterData.getStart()));
-            //System.out.println("Sorted intervals: " + filters.stream().map(fws -> fws.filterData.toString()).collect(Collectors.toList()));
-
-            // Merge intervals and track senders
+            filters.sort(Comparator.comparingInt(fws -> fws.getFilterData().getStart()));
             List<MergedInterval> mergedIntervals = mergeIntervals(filters);
             combinedResults.addAll(mergedIntervals);
-
-            // Print results
-            //System.out.println("Merged intervals:");
-            for (MergedInterval interval : mergedIntervals) {
-                //System.out.println(interval);
-            }
         }
-
-        // Sort the combined results by start time
         combinedResults.sort(Comparator.comparingInt(MergedInterval::getStart));
-
-        // Print combined results
-        //System.out.println("\nAll merged intervals combined:");
-        for (MergedInterval interval : combinedResults) {
-            //System.out.println(interval);
-        }
-
         return combinedResults;
-    }
-
-    @Override
-    public Map<DTNHost, Integer> getKeys() {
-
-        return Map.of();
-    }
-
-
-    // Helper class to associate FilterData with its sender
-    private static class FilterDataWithSender {
-        FilterData filterData;
-        DTNHost sender;
-
-        public FilterDataWithSender(FilterData filterData, DTNHost sender) {
-            this.filterData = filterData;
-            this.sender = sender;
-        }
     }
 
     private List<MergedInterval> mergeIntervals(List<FilterDataWithSender> filtersWithSenders) {
         if (filtersWithSenders.isEmpty()) {
             return Collections.emptyList();
         }
-
-        // Create a list of all interval points (start and end)
         List<IntervalPoint> points = new ArrayList<>();
         for (FilterDataWithSender fws : filtersWithSenders) {
-            points.add(new IntervalPoint(fws.filterData.getStart(), true, fws.sender));
-            points.add(new IntervalPoint(fws.filterData.getEnd(), false, fws.sender));
+            points.add(new IntervalPoint(fws.getFilterData().getStart(), true, fws.getSender()));
+            points.add(new IntervalPoint(fws.getFilterData().getEnd(), false, fws.getSender()));
         }
-
-        // Sort points
         Collections.sort(points);
 
         List<MergedInterval> result = new ArrayList<>();
@@ -262,51 +242,24 @@ public class Broker extends DTNHost implements PropertySettings, SubscriberKey {
         int prevPoint = -1;
 
         for (IntervalPoint point : points) {
-            if (!activeSenders.isEmpty() && prevPoint != point.value) {
-                // Add the interval from prevPoint to current point
-                result.add(new MergedInterval(prevPoint, point.value, new HashSet<>(activeSenders)));
+            if (!activeSenders.isEmpty() && prevPoint != point.getValue()) {
+                result.add(new MergedInterval(prevPoint, point.getValue(), new HashSet<>(activeSenders)));
             }
 
-            if (point.isStart) {
-                activeSenders.add(point.sender);
+            if (point.isStart()) {
+                activeSenders.add(point.getSender());
             } else {
-                activeSenders.remove(point.sender);
+                activeSenders.remove(point.getSender());
             }
 
-            prevPoint = point.value;
+            prevPoint = point.getValue();
         }
 
         return result;
     }
 
-    // IntervalPoint and MergedInterval classes remain the same as before
-    private static class IntervalPoint implements Comparable<IntervalPoint> {
-        int value;
-        boolean isStart;
-        DTNHost sender;
-
-        public IntervalPoint(int value, boolean isStart, DTNHost sender) {
-            this.value = value;
-            this.isStart = isStart;
-            this.sender = sender;
-        }
-
-        @Override
-        public int compareTo(IntervalPoint other) {
-            if (this.value != other.value) {
-                return Integer.compare(this.value, other.value);
-            }
-            // Start points come before end points when values are equal
-            return Boolean.compare(other.isStart, this.isStart);
-        }
-    }
-
     public List<PairKey> getPairKeys() {
         return pairKeys;
-    }
-
-    public void setPairKeys(List<PairKey> pairKeys) {
-        this.pairKeys = pairKeys;
     }
 
     public void addPairKey(PairKey pairKey){

@@ -5,7 +5,7 @@
 package core;
 
 import core.GroupBased.Broker;
-import core.GroupBased.IKeyListener;
+import GroupBased.IKeyListener;
 import core.GroupBased.Publisher;
 import core.GroupBased.Subscriber;
 import input.EventQueue;

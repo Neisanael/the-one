@@ -3,7 +3,7 @@ package test;
 
 import core.Coord;
 import core.DTNHost;
-import core.GroupBased.IKeyListener;
+import GroupBased.IKeyListener;
 import core.MessageListener;
 import core.MovementListener;
 import core.NetworkInterface;

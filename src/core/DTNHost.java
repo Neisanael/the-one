@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
-import core.GroupBased.IKeyListener;
+import GroupBased.IKeyListener;
 import movement.MovementModel;
 import movement.Path;
 import routing.MessageRouter;

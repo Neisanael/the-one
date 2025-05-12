@@ -1,5 +1,7 @@
-package core.GroupBased;
+package GroupBased;
 
+import GroupBased.Model.MergedInterval;
+import GroupBased.Model.PairKey;
 import core.DTNHost;
 import core.Message;
 

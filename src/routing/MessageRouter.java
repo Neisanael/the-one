@@ -10,10 +10,7 @@ import GroupBased.PropertySettings;
 import core.Application;
 import core.Connection;
 import core.DTNHost;
-import core.GroupBased.Broker;
-import core.GroupBased.IKeyListener;
-import core.GroupBased.Publisher;
-import core.GroupBased.Subscriber;
+import GroupBased.IKeyListener;
 import core.Message;
 import core.MessageListener;
 import core.Settings;
@@ -399,24 +396,8 @@ public abstract class MessageRouter implements PropertySettings {
 		}
 
 		for (MessageListener ml : this.mListeners) {
-			if(this.getHost() instanceof Subscriber){
-				if(aMessage.getProperty(ENCRYPTED) != null ){
-					Object encryptedProperty = aMessage.getProperty(ENCRYPTED);
-					if(encryptedProperty instanceof Map){
-						Map<byte[], List<byte[]>> encryptedMap = (Map<byte[], List<byte[]>>) encryptedProperty;
-						for (byte[] key : encryptedMap.keySet()) {
-							for(byte[] value : encryptedMap.get(key)){
-								if (((Subscriber) this.getHost()).openMessages(key, value)) {
-									ml.messageTransferred(aMessage, from, this.host, isFirstDelivery);
-								}
-							}
-						}
-					}
-				}
-			}else{
-				ml.messageTransferred(aMessage, from, this.host,
-						isFirstDelivery);
-			}
+			ml.messageTransferred(aMessage, from, this.host,
+					isFirstDelivery);
 		}
 
 		return aMessage;

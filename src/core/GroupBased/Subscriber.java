@@ -1,5 +1,7 @@
 package core.GroupBased;
 
+import GroupBased.IKeyListener;
+import GroupBased.Model.PairKey;
 import GroupBased.PropertySettings;
 import core.*;
 import movement.MovementModel;
@@ -8,7 +10,6 @@ import routing.MessageRouter;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 
@@ -41,7 +42,6 @@ public class Subscriber extends DTNHost implements PropertySettings {
                     kl.openedMessage(getPairKey().getSecretKey(), this);
                 }
             }
-            System.out.println(value);
             return true;
         } catch (Exception e) {
             //System.err.println("error decrypting: " + e.getMessage());

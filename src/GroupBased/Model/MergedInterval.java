@@ -1,4 +1,4 @@
-package core.GroupBased;
+package GroupBased.Model;
 
 import core.DTNHost;
 

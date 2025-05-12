@@ -1,15 +1,13 @@
 package core.GroupBased;
 
+import GroupBased.IKeyListener;
+import GroupBased.Model.PairKey;
 import GroupBased.PropertySettings;
 import core.*;
 import movement.MovementModel;
 import routing.MessageRouter;
 
-import javax.crypto.SecretKey;
-import java.math.BigInteger;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 public class Publisher extends DTNHost implements PropertySettings {
     private PairKey pairKey;

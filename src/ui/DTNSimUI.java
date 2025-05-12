@@ -6,7 +6,7 @@ package ui;
 
 import java.util.Vector;
 
-import core.GroupBased.IKeyListener;
+import GroupBased.IKeyListener;
 import report.Report;
 import core.ApplicationListener;
 import core.ConnectionListener;
