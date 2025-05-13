@@ -30,7 +30,6 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
         this.responseSize = responseSize;
     }
 
-
     /**
      * Creates the message this event represents.
      */
@@ -38,23 +37,23 @@ public class MessageCreateEventGroup extends MessageEvent implements PropertySet
     public void processEvent(World world) {
         DTNHost to = world.getNodeByAddress(this.toAddr);
         DTNHost from = world.getNodeByAddress(this.fromAddr);
-        if(from instanceof Publisher && to instanceof Subscriber){
+        if(from instanceof Publisher && to instanceof Broker){
             if(((Publisher) from).getPairKey().getSecretKey() != null){
                 Message m = new Message(from, to, this.id, this.size);
                 m.addProperty(EVENTS, GenerateInterest.generateEventData());
                 m.setResponseSize(this.responseSize);
                 from.createNewMessage(m);
             }
-        } else if (from instanceof Subscriber && to instanceof Publisher){
+        } else if (from instanceof Subscriber && to instanceof Broker){
             if(((Subscriber) from).getPairKey().getSecretKey() != null){
                 Message m = new Message(from, to, this.id, this.size);
                 m.addProperty(FILTERS, GenerateInterest.generateFilterData());
                 m.setResponseSize(this.responseSize);
                 from.createNewMessage(m);
             }
-        } else if (from instanceof Broker && to instanceof Publisher){
+        } else if (from instanceof Broker && to instanceof Subscriber){
             ((Broker) from).processGroup();
-            if(!((Broker) from).encryptEventGroups().isEmpty()){
+            if(!((Broker) from).getEncryptedEventsGrouped().isEmpty()){
                 Message m = new Message(from, to, this.id, this.size);
                 m.addProperty(ENCRYPTED, ((Broker) from).getEncryptedEventsGrouped());
                 m.setResponseSize(this.responseSize);

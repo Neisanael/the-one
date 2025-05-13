@@ -14,7 +14,7 @@ import java.util.*;
 
 public class KeysPerHostReport extends Report implements IKeyListener, UpdateListener {
     private Map<DTNHost, List<SecretKey>> pairKeysPerHost;
-    private Map<DTNHost, List<SecretKey>> groupKeysPerBroker;
+    private Map<SecretKey, List<DTNHost>> groupKeysPerBroker;
     private Map<DTNHost, List<SecretKey>> messageDecrypted;
     private Map<DTNHost, List<MergedInterval>> groupsPerHost;
     private Set<Message> eventsCreated;
@@ -66,7 +66,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
 
     @Override
     public void groupKeyGeneratedByBroker(SecretKey key, DTNHost broker) {
-        this.groupKeysPerBroker.computeIfAbsent(broker, k -> new ArrayList<>()).add(key);
+        this.groupKeysPerBroker.computeIfAbsent(key, k -> new ArrayList<>()).add(broker);
     }
 
     @Override
@@ -142,9 +142,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
     }
 
     public int totalGroupKeysPerBroker(){
-        return this.groupKeysPerBroker.values().stream()
-                .mapToInt(List::size)
-                .sum();
+        return this.groupKeysPerBroker.size();
     }
 
     public int totalGenerationLoad() {
@@ -162,30 +160,6 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
         return subscriberCount > 0
                 ? totalComputingCostGroup / subscriberCount
                 : 0;
-    }
-
-    @Override
-    public void done() {
-        write("Message stats for scenario " + getScenarioName());
-
-        String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
-                "\nopenedMessages : " + this.totalMessageOpened() +
-                "\ncreatedPairKey : " + this.totalPairKeys() +
-                "\ncreatedGroup : " + this.totalGroupsPerHost() +
-                "\ncreatedPairKeyBySubscriber : " + this.totalSubscriberPairKeys() +
-                "\ncreatedPairKeyByPublisher : " + this.totalPublisherPairKeys() +
-                "\ntotalCreatedEvents : " + this.totalEventsCreated() +
-                "\ntotalCreatedFilters : " + this.totalFiltersCreated() +
-                "\ntotalCreatedEncryptedEvents : " + this.totalEncryptedEventsCreated() +
-                "\ntotalSizeWhenMsgGrouped : " + this.totalGenerationLoad() +
-                "\ntotalHowManyBrokerGenerateGroup : " + this.totalGenerationDoes() +
-                "\ntotalComputingCost(ms) : " + this.totalComputingCostGroup +
-                "\navgComputingCostPerSubscriber(ms) : " + this.avgComputingCostGroup() +
-                "\ntotalSubscriber : " + this.subscriberCount
-                ;
-
-        write(statsText);
-        super.done();
     }
 
     @Override
@@ -213,7 +187,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
                 }
                 if (host instanceof Broker) {
                     // Compute costs for PSGuard using buffer and free space
-                    computePSGuardCostWithBuffer(host);
+                    computeGroupCostWithBuffer(host);
                 }
             }
         }
@@ -222,9 +196,9 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
     /**
      * Computes PSGuard costs using remaining buffer size dynamically.
      */
-    private void computePSGuardCostWithBuffer(DTNHost host) {
+    private void computeGroupCostWithBuffer(DTNHost host) {
         // Compute the dynamically calculated computing cost
-        int usedBuffer = (int)(host.getRouter().getFreeBufferSize() - host.getRouter().getFreeBufferSize()); // Used buffer size in bytes
+        int usedBuffer = (int)host.getRouter().getFreeBufferSize(); // Used buffer size in bytes
         int dynamicComputingCost = calculateDynamicComputingCost(usedBuffer); // Determine cost based on buffer usage
         totalComputingCostGroup += dynamicComputingCost;
 
@@ -245,4 +219,27 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
         return Math.max(calculatedCost, baseCost); // Ensure cost is at least base cost
     }
 
+    @Override
+    public void done() {
+        write("Message stats for scenario " + getScenarioName());
+
+        String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
+                "\nopenedMessages : " + this.totalMessageOpened() +
+                "\ncreatedPairKey : " + this.totalPairKeys() +
+                "\ncreatedGroup : " + this.totalGroupsPerHost() +
+                "\ncreatedPairKeyBySubscriber : " + this.totalSubscriberPairKeys() +
+                "\ncreatedPairKeyByPublisher : " + this.totalPublisherPairKeys() +
+                "\ntotalCreatedEvents : " + this.totalEventsCreated() +
+                "\ntotalCreatedFilters : " + this.totalFiltersCreated() +
+                "\ntotalCreatedEncryptedEvents : " + this.totalEncryptedEventsCreated() +
+                "\ntotalSizeWhenMsgGrouped : " + this.totalGenerationLoad() +
+                "\ntotalHowManyBrokerGenerateGroup : " + this.totalGenerationDoes() +
+                "\ntotalComputingCost(ms) : " + this.totalComputingCostGroup +
+                "\navgComputingCostPerSubscriber(ms) : " + this.avgComputingCostGroup() +
+                "\ntotalSubscriber : " + this.subscriberCount
+                ;
+
+        write(statsText);
+        super.done();
+    }
 }

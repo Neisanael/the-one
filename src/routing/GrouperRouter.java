@@ -17,11 +17,6 @@ import java.util.*;
 public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     private List<IKeyListener> kListeners;
-    private static final int DH_KEY_LENGTH = 512;
-    private static final int PRIVATE_KEY_LENGTH = 256;
-    private static final SecureRandom random = new SecureRandom();
-    private BigInteger primeP;
-    private BigInteger primeG;
 
     public GrouperRouter(Settings s) {
         super(s);
@@ -38,8 +33,6 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     protected GrouperRouter(GrouperRouter r) {
         super(r);
-        this.primeP = r.primeP;
-        this.primeG = r.primeG;
         this.kListeners = r.kListeners;
     }
 
@@ -57,104 +50,91 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
             try {
                 exchangeKeysWith(otherHost);
                 updatePairKeysWith(otherHost);
-                updateGroupKeysWith(otherHost);
+                //updateGroupKeysWith(otherHost);
             } catch (Exception e) {
                 //System.err.println("DH key exchange failed with " + otherHost);
             }
         }
     }
 
-    private void initializeDHParameters() {
-        if (primeP == null || primeG == null) {
-            primeP = BigInteger.probablePrime(DH_KEY_LENGTH, random);
-            primeG = BigInteger.probablePrime(DH_KEY_LENGTH, random);
-        }
-    }
-
     private void exchangeKeysWith(DTNHost otherHost) throws Exception {
-        initializeDHParameters();
-
-        BigInteger privThis = new BigInteger(PRIVATE_KEY_LENGTH, random);
-        BigInteger privOther = new BigInteger(PRIVATE_KEY_LENGTH, random);
-
-        BigInteger pubThis = primeG.modPow(privThis, primeP);
-        BigInteger pubOther = primeG.modPow(privOther, primeP);
-
-        BigInteger secretThis = pubOther.modPow(privThis, primeP);
-        BigInteger secretOther = pubThis.modPow(privOther, primeP);
-
-        if (shouldExchangeKeys(this.getHost(), otherHost)) {
-            exchangeSharedKey(determineBroker(this.getHost(), otherHost),
-                    determineNonBroker(this.getHost(), otherHost),
-                    secretThis, secretOther);
-        }
-    }
-
-    private boolean shouldExchangeKeys(DTNHost host1, DTNHost host2) {
-        PairKey pairKey = getPairKeyForHost(isBroker(host1) ? host2 : host1);
-        if (pairKey == null) return true;
-
-        double expirationTime = pairKey.getTimeSecretKeyCreated() + this.getMsgTtl();
-        return expirationTime <= SimClock.getTime();
-    }
-
-    private DTNHost determineBroker(DTNHost host1, DTNHost host2) {
-        return isBroker(host1) ? host1 : host2;
-    }
-
-    private DTNHost determineNonBroker(DTNHost host1, DTNHost host2) {
-        return isBroker(host1) ? host2 : host1;
-    }
-
-    private boolean isBroker(DTNHost host) {
-        return host instanceof Broker;
-    }
-
-    private PairKey getPairKeyForHost(DTNHost host) {
-        if (host instanceof Subscriber) {
-            return ((Subscriber) host).getPairKey();
-        } else if (host instanceof Publisher) {
-            return ((Publisher) host).getPairKey();
-        }
-        return null;
-    }
-
-    private void exchangeSharedKey(DTNHost broker, DTNHost nonBroker,
-                                   BigInteger secretA, BigInteger secretB) throws Exception {
-        PairKey nonBrokerKey = createPairKey(nonBroker, secretA);
-        setPairKey(nonBroker, nonBrokerKey);
-
-        PairKey brokerKey = createPairKey(nonBroker, secretB);
-        ((Broker) broker).addPairKey(brokerKey);
-
-        notifyKeyListeners(nonBrokerKey, brokerKey);
-    }
-
-    private PairKey createPairKey(DTNHost host, BigInteger secret) throws NoSuchAlgorithmException {
-        PairKey key = new PairKey();
-        key.setSecretKey(convertToAESKey(secret));
-        key.setHostThisKeyBelongsTo(host);
-        key.setTimeSecretKeyCreated(SimClock.getTime());
-        return key;
-    }
-
-    private void setPairKey(DTNHost host, PairKey key) {
-        if (host instanceof Subscriber) {
-            ((Subscriber) host).setPairKey(key);
-        } else if (host instanceof Publisher) {
-            ((Publisher) host).setPairKey(key);
-        }
-    }
-
-    private void notifyKeyListeners(PairKey... keys) {
-        for (PairKey key : keys) {
-            for (IKeyListener listener : kListeners) {
-                listener.keyPairCreated(key);
+        SecureRandom random = new SecureRandom();
+        int bitLength = 512;
+        // Generate large prime modulus and generator
+        BigInteger primeP = BigInteger.probablePrime(bitLength, random);
+        BigInteger primeG = BigInteger.probablePrime(bitLength, random);
+        // Generate private keys
+        BigInteger privBroker = new BigInteger(256, random);
+        BigInteger privSubscriberOrPublisher = new BigInteger(256, random);
+        // Compute public keys
+        BigInteger pubBroker = primeG.modPow(privBroker, primeP);
+        BigInteger pubSubscriberOrPublisher = primeG.modPow(privSubscriberOrPublisher, primeP);
+        //Add Key to subscriber
+        BigInteger secretA = pubSubscriberOrPublisher.modPow(privBroker, primeP); // B^a mod p
+        //Add Key to broker
+        BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
+        if (this.getHost() instanceof Broker && otherHost instanceof Subscriber) {
+            double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) otherHost).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            if(((Subscriber) otherHost).getPairKey() == null){
+                exchangeSharedKey(this.getHost(), otherHost, secretA, secretB);
+            }else if (totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
+                exchangeSharedKey(this.getHost(), otherHost, secretA, secretB);
+            }
+        }else if(this.getHost() instanceof Subscriber && otherHost instanceof Broker){
+            double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) this.getHost()).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            if(((Subscriber) this.getHost()).getPairKey() == null){
+                exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
+            }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
+                exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
+            }
+        }else if(this.getHost() instanceof Broker && otherHost instanceof Publisher){
+            double totalCreatedSecretKeyWithMsgTtl = ((Publisher) otherHost).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            if(((Publisher) otherHost).getPairKey() == null){
+                exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
+            }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
+                exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
+            }
+        }else if(this.getHost() instanceof Publisher && otherHost instanceof Broker){
+            double totalCreatedSecretKeyWithMsgTtl = ((Publisher) this.getHost()).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            if(((Publisher) this.getHost()).getPairKey() == null){
+                exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
+            }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
+                exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }
         }
     }
 
-    private void updatePairKeysWith(DTNHost otherHost) throws Exception {
+    private void exchangeSharedKey(DTNHost broker, DTNHost subscriberOrPublisher, BigInteger secretA, BigInteger secretB) throws Exception {
+        if(subscriberOrPublisher instanceof Publisher){
+            PairKey publisherPairKey = new PairKey();
+            publisherPairKey.setSecretKey(convertToAESKey(secretA));
+            publisherPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
+            publisherPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+            ((Publisher) subscriberOrPublisher).setPairKey(publisherPairKey);
+            for(IKeyListener kl : kListeners){
+                kl.keyPairCreated(publisherPairKey);
+            }
+        }else if(subscriberOrPublisher instanceof Subscriber){
+            PairKey subscriberPairKey = new PairKey();
+            subscriberPairKey.setSecretKey(convertToAESKey(secretA));
+            subscriberPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
+            subscriberPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+            ((Subscriber) subscriberOrPublisher).setPairKey(subscriberPairKey);
+            for(IKeyListener kl : kListeners){
+                kl.keyPairCreated(subscriberPairKey);
+            }
+        }
+        PairKey brokerPairKey = new PairKey();
+        brokerPairKey.setSecretKey(convertToAESKey(secretB));
+        brokerPairKey.setHostThisKeyBelongsTo(subscriberOrPublisher);
+        brokerPairKey.setTimeSecretKeyCreated(SimClock.getTime());
+        ((Broker) broker).addPairKey(brokerPairKey);
+        for(IKeyListener kl : kListeners){
+            kl.keyPairCreated(brokerPairKey);
+        }
+    }
+
+    private void updatePairKeysWith(DTNHost otherHost) {
         if(otherHost instanceof Broker && this.getHost() instanceof Broker){
             for (PairKey otherPairKey : ((Broker) otherHost).getPairKeys()) {
                 boolean found = false;
@@ -188,8 +168,8 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
             return;
         }
 
-        cleanExpiredCaches((Broker) this.getHost(), this.getMsgTtl() * 1000, SimClock.getTime());
-        cleanExpiredCaches((Broker) otherHost, this.getMsgTtl() * 1000, SimClock.getTime());
+        cleanExpiredCaches((Broker) this.getHost(), this.getMsgTtl() * 36000, SimClock.getTime());
+        cleanExpiredCaches((Broker) otherHost, this.getMsgTtl() * 36000, SimClock.getTime());
 
         exchangeKeyCaches((Broker) this.getHost(), (Broker) otherHost);
     }
@@ -199,7 +179,6 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
         for (KeyCache keyCache : cachesToCheck) {
             if ((keyCache.getTimeCreated() + maxAge) <= currentTime) {
-                System.out.println("clean expired cache key");
                 broker.deleteKeyCache(keyCache);
             }
         }
@@ -215,7 +194,7 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
         broker2.getKeyCaches().addAll(combinedCaches);
     }
 
-    public static SecretKey convertToAESKey(BigInteger bigInt) throws NoSuchAlgorithmException {
+    public static SecretKey convertToAESKey(BigInteger bigInt) {
         byte[] keyBytes = bigInt.toByteArray();
         byte[] normalizedKey = new byte[32];
         int length = Math.min(keyBytes.length, 32);
@@ -231,40 +210,33 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
     @Override
     public Message messageTransferred(String id, DTNHost from) {
         Message msg = super.messageTransferred(id, from);
-
         if (this.getHost() instanceof Broker) {
-            handleBrokerTransfer();
+            //System.out.println(this.getFreeBufferSize());
+            ((Broker) this.getHost()).makeGroups();
+            ((Broker) this.getHost()).processGroup();
+            Set<Message> setFilterMsg = new HashSet<>();
+            for(Message msgs : getMessageCollection()){
+                if(msgs.getProperty(FILTERS) != null){
+                    setFilterMsg.add(msgs);
+                }
+            }
+            for (IKeyListener kl : kListeners) {
+                kl.generationLoad(setFilterMsg);
+            }
         } else if (this.getHost() instanceof Subscriber) {
             handleSubscriberTransfer(msg);
         }
-
         return msg;
-    }
-
-    private void handleBrokerTransfer() {
-        ((Broker) this.getHost()).makeGroups();
-        Set<Message> setFilterMsg = new HashSet<>();
-        for(Message msg : getMessageCollection()){
-            if(msg.getProperty(FILTERS) != null){
-                setFilterMsg.add(msg);
-            }
-        }
-
-        for (IKeyListener listener : kListeners) {
-            listener.generationLoad(setFilterMsg);
-        }
     }
 
     private void handleSubscriberTransfer(Message msg) {
         if (!hasEncryptedProperty(msg)) {
             return;
         }
-
         Object encryptedProperty = msg.getProperty(ENCRYPTED);
         if (!(encryptedProperty instanceof Map)) {
             return;
         }
-
         processEncryptedMessages((Map<byte[], Set<byte[]>>) encryptedProperty);
     }
 
@@ -304,80 +276,7 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
             return; // started a transfer, don't try others (yet)
         }
 
-        if(this.getHost() instanceof Broker){
-            if(!getConnectedBrokerOrSubscriberHosts().isEmpty()){
-                this.tryMessagesToConnections(getMessagesWithEncrypted(), getConnectedBrokerOrSubscriberHosts());
-            }
-        }else if(this.getHost() instanceof Subscriber){
-            if(!getConnectedBrokerOrSubscriberHosts().isEmpty()){
-                this.tryMessagesToConnections(getMessagesWithFilters(), getConnectedBrokerOrSubscriberHosts());
-            }
-        }else if(this.getHost() instanceof Publisher){
-            if(!getConnectedBrokerOrPublisherHosts().isEmpty()){
-                this.tryMessagesToConnections(getMessagesWithEvents(), getConnectedBrokerOrPublisherHosts());
-            }
-        }
-    }
-
-    protected List<Connection> getConnectedBrokerOrSubscriberHosts() {
-        List<Connection> list = new ArrayList<Connection>();
-        for (Connection connection : this.getHost().getConnections()) {
-            if(connection.getOtherNode(this.getHost()) instanceof Broker || connection.getOtherNode(this.getHost()) instanceof Subscriber){
-                list.add(connection);
-            }
-        }
-        return list;
-    }
-
-    protected List<Connection> getConnectedBrokerOrPublisherHosts(){
-        List<Connection> list = new ArrayList<Connection>();
-        for (Connection connection : this.getHost().getConnections()) {
-            if(connection.getOtherNode(this.getHost()) instanceof Broker || connection.getOtherNode(this.getHost()) instanceof Publisher){
-                list.add(connection);
-            }
-        }
-        return list;
-    }
-
-    /**
-     * Creates and returns a list of messages this router is currently
-     * carrying and still has copies left to distribute (nrof copies > 1).
-     * @return A list of messages that have copies left
-     */
-    protected List<Message> getMessagesWithEvents() {
-        List<Message> list = new ArrayList<Message>();
-
-        for (Message m : getMessageCollection()) {
-            if(m.getProperty(EVENTS) != null){
-                list.add(m);
-            }
-        }
-
-        return list;
-    }
-
-    protected List<Message> getMessagesWithEncrypted() {
-        List<Message> list = new ArrayList<Message>();
-
-        for (Message m : getMessageCollection()) {
-            if(m.getProperty(ENCRYPTED) != null) {
-                list.add(m);
-            }
-        }
-
-        return list;
-    }
-
-    protected List<Message> getMessagesWithFilters() {
-        List<Message> list = new ArrayList<Message>();
-
-        for (Message m : getMessageCollection()) {
-            if(m.getProperty(FILTERS) != null) {
-                list.add(m);
-            }
-        }
-
-        return list;
+        this.tryAllMessagesToAllConnections();
     }
 
     @Override
