@@ -75,9 +75,9 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
         if (!(otherHost instanceof Broker && this.getHost() instanceof Broker)) {
             return;
         }
-        cleanExpiredCaches((Broker) this.getHost(), this.getMsgTtl()*5, SimClock.getTime());
-        cleanExpiredCaches((Broker) otherHost, this.getMsgTtl()*5, SimClock.getTime());
-        //exchangeKeyCaches((Broker) this.getHost(), (Broker) otherHost);
+        cleanExpiredCaches((Broker) this.getHost(), this.getMsgTtl()*10, SimClock.getTime());
+        cleanExpiredCaches((Broker) otherHost, this.getMsgTtl()*10, SimClock.getTime());
+        exchangeKeyCaches((Broker) this.getHost(), (Broker) otherHost);
     }
 
     private void cleanExpiredCaches(Broker broker, double maxAge, double currentTime) {
