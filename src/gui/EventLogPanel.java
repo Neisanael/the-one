@@ -10,6 +10,7 @@ import java.awt.GridLayout;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 import java.util.Set;
 import java.util.Vector;
 
@@ -372,7 +373,12 @@ public class EventLogPanel extends JPanel
 	}
 
 	@Override
-	public void generatedGroups(DTNHost maker, MergedInterval mergedInterval) {
+	public void latenciesGroupKey(double latency) {
+
+	}
+
+	@Override
+	public void generatedGroups(DTNHost maker, List<MergedInterval> mergedInterval) {
 
 	}
 

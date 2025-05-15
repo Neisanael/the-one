@@ -91,8 +91,7 @@ public class MessageStatsReport extends Report implements MessageListener {
 	}
 
 
-	public void messageTransferred(Message m, DTNHost from, DTNHost to,
-			boolean finalTarget) {
+	public void messageTransferred(Message m, DTNHost from, DTNHost to, boolean finalTarget) {
 		if (isWarmupID(m.getId())) {
 			return;
 		}
@@ -100,8 +99,7 @@ public class MessageStatsReport extends Report implements MessageListener {
 		this.nrofRelayed++;
 		if (finalTarget) {
 			if(this.creationTimes.get(m.getId()) != null){
-				this.latencies.add(getSimTime() -
-						this.creationTimes.get(m.getId()) );
+				this.latencies.add(getSimTime() - this.creationTimes.get(m.getId()) );
 			}
 			this.nrofDelivered++;
 			this.hopCounts.add(m.getHops().size() - 1);

@@ -13,6 +13,7 @@ import java.math.BigInteger;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
@@ -42,6 +43,18 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
         this.kListeners = kListeners;
     }
 
+    /*@Override
+    public int receiveMessage(Message m, DTNHost from) {
+        if(m.getFrom() instanceof Broker && this.getHost().equals(m.getTo()) ){
+            return DENIED_UNSPECIFIED;
+        }else if(m.getFrom() instanceof Subscriber && this.getHost().equals(m.getTo())){
+            return DENIED_UNSPECIFIED;
+        }else if(m.getFrom() instanceof Publisher && this.getHost().equals(m.getTo())){
+            return DENIED_UNSPECIFIED;
+        }
+        return super.receiveMessage(m, from);
+    }*/
+
     @Override
     public void changedConnection(Connection con) {
         super.changedConnection(con);
@@ -50,11 +63,40 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
             try {
                 exchangeKeysWith(otherHost);
                 updatePairKeysWith(otherHost);
-                //updateGroupKeysWith(otherHost);
+                updateGroupKeysWith(otherHost);
             } catch (Exception e) {
                 //System.err.println("DH key exchange failed with " + otherHost);
             }
         }
+    }
+
+
+    public void updateGroupKeysWith(DTNHost otherHost) throws Exception {
+        if (!(otherHost instanceof Broker && this.getHost() instanceof Broker)) {
+            return;
+        }
+        cleanExpiredCaches((Broker) this.getHost(), this.getMsgTtl()*5, SimClock.getTime());
+        cleanExpiredCaches((Broker) otherHost, this.getMsgTtl()*5, SimClock.getTime());
+        //exchangeKeyCaches((Broker) this.getHost(), (Broker) otherHost);
+    }
+
+    private void cleanExpiredCaches(Broker broker, double maxAge, double currentTime) {
+        List<KeyCache> cachesToCheck = new ArrayList<>(broker.getKeyCaches());
+        for (KeyCache keyCache : cachesToCheck) {
+            if ((keyCache.getTimeCreated() + maxAge) <= currentTime) {
+                broker.deleteKeyCache(keyCache);
+            }
+        }
+    }
+
+    private void exchangeKeyCaches(Broker broker1, Broker broker2) {
+        Set<KeyCache> combinedCaches = new HashSet<>();
+        combinedCaches.addAll(broker1.getKeyCaches());
+        combinedCaches.addAll(broker2.getKeyCaches());
+        broker1.getKeyCaches().clear();
+        broker1.getKeyCaches().addAll(combinedCaches);
+        broker2.getKeyCaches().clear();
+        broker2.getKeyCaches().addAll(combinedCaches);
     }
 
     private void exchangeKeysWith(DTNHost otherHost) throws Exception {
@@ -74,28 +116,28 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
         //Add Key to broker
         BigInteger secretB = pubBroker.modPow(privSubscriberOrPublisher, primeP); // A^b mod p
         if (this.getHost() instanceof Broker && otherHost instanceof Subscriber) {
-            double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) otherHost).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) otherHost).getPairKey().getTimeSecretKeyCreated() + (this.getMsgTtl() * 12);
             if(((Subscriber) otherHost).getPairKey() == null){
                 exchangeSharedKey(this.getHost(), otherHost, secretA, secretB);
             }else if (totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
                 exchangeSharedKey(this.getHost(), otherHost, secretA, secretB);
             }
         }else if(this.getHost() instanceof Subscriber && otherHost instanceof Broker){
-            double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) this.getHost()).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            double totalCreatedSecretKeyWithMsgTtl = ((Subscriber) this.getHost()).getPairKey().getTimeSecretKeyCreated() + (this.getMsgTtl() * 12);
             if(((Subscriber) this.getHost()).getPairKey() == null){
                 exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
                 exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }
         }else if(this.getHost() instanceof Broker && otherHost instanceof Publisher){
-            double totalCreatedSecretKeyWithMsgTtl = ((Publisher) otherHost).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            double totalCreatedSecretKeyWithMsgTtl = ((Publisher) otherHost).getPairKey().getTimeSecretKeyCreated() + (this.getMsgTtl() * 12);
             if(((Publisher) otherHost).getPairKey() == null){
                 exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
                 exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }
         }else if(this.getHost() instanceof Publisher && otherHost instanceof Broker){
-            double totalCreatedSecretKeyWithMsgTtl = ((Publisher) this.getHost()).getPairKey().getTimeSecretKeyCreated() + this.getMsgTtl();
+            double totalCreatedSecretKeyWithMsgTtl = ((Publisher) this.getHost()).getPairKey().getTimeSecretKeyCreated() + (this.getMsgTtl() * 12);
             if(((Publisher) this.getHost()).getPairKey() == null){
                 exchangeSharedKey(otherHost, this.getHost(), secretA, secretB);
             }else if(totalCreatedSecretKeyWithMsgTtl <= SimClock.getTime()){
@@ -163,37 +205,6 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
         }
     }
 
-    public void updateGroupKeysWith(DTNHost otherHost) throws Exception {
-        if (!(otherHost instanceof Broker && this.getHost() instanceof Broker)) {
-            return;
-        }
-
-        cleanExpiredCaches((Broker) this.getHost(), this.getMsgTtl() * 36000, SimClock.getTime());
-        cleanExpiredCaches((Broker) otherHost, this.getMsgTtl() * 36000, SimClock.getTime());
-
-        exchangeKeyCaches((Broker) this.getHost(), (Broker) otherHost);
-    }
-
-    private void cleanExpiredCaches(Broker broker, double maxAge, double currentTime) {
-        List<KeyCache> cachesToCheck = new ArrayList<>(broker.getKeyCaches());
-
-        for (KeyCache keyCache : cachesToCheck) {
-            if ((keyCache.getTimeCreated() + maxAge) <= currentTime) {
-                broker.deleteKeyCache(keyCache);
-            }
-        }
-    }
-
-    private void exchangeKeyCaches(Broker broker1, Broker broker2) {
-        Set<KeyCache> combinedCaches = new HashSet<>();
-        combinedCaches.addAll(broker1.getKeyCaches());
-        combinedCaches.addAll(broker2.getKeyCaches());
-        broker1.getKeyCaches().clear();
-        broker1.getKeyCaches().addAll(combinedCaches);
-        broker2.getKeyCaches().clear();
-        broker2.getKeyCaches().addAll(combinedCaches);
-    }
-
     public static SecretKey convertToAESKey(BigInteger bigInt) {
         byte[] keyBytes = bigInt.toByteArray();
         byte[] normalizedKey = new byte[32];
@@ -211,11 +222,10 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
     public Message messageTransferred(String id, DTNHost from) {
         Message msg = super.messageTransferred(id, from);
         if (this.getHost() instanceof Broker) {
-            //System.out.println(this.getFreeBufferSize());
             ((Broker) this.getHost()).makeGroups();
             ((Broker) this.getHost()).processGroup();
             Set<Message> setFilterMsg = new HashSet<>();
-            for(Message msgs : getMessageCollection()){
+            for(Message msgs : this.getHost().getMessageCollection()){
                 if(msgs.getProperty(FILTERS) != null){
                     setFilterMsg.add(msgs);
                 }
@@ -223,7 +233,7 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
             for (IKeyListener kl : kListeners) {
                 kl.generationLoad(setFilterMsg);
             }
-        } else if (this.getHost() instanceof Subscriber) {
+        }if(this.getHost() instanceof Subscriber){
             handleSubscriberTransfer(msg);
         }
         return msg;
@@ -246,14 +256,11 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
 
     private void processEncryptedMessages(Map<byte[], Set<byte[]>> encryptedMap) {
         Subscriber subscriber = (Subscriber) this.getHost();
-
-        encryptedMap.forEach((key, values) -> {
-            values.forEach(value -> {
-                if (subscriber.openMessages(key, value)) {
-                    System.out.println("success");
-                }
+            encryptedMap.forEach((key, values) -> {
+                values.forEach(value -> {
+                    subscriber.openMessages(key, value);
+                });
             });
-        });
     }
 
     @Override

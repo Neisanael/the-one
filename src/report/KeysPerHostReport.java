@@ -17,6 +17,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
     private Map<SecretKey, List<DTNHost>> groupKeysPerBroker;
     private Map<DTNHost, List<SecretKey>> messageDecrypted;
     private Map<DTNHost, List<MergedInterval>> groupsPerHost;
+    private List<Double> latencies;
     private Set<Message> eventsCreated;
     private Set<Message> filtersCreated;
     private Set<Message> encryptedEventsCreated;
@@ -47,6 +48,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
         this.filtersCreated = new HashSet<>();
         this.encryptedEventsCreated = new HashSet<>();
         this.generationMsg = new ArrayList<>();
+        this.latencies = new ArrayList<>();
     }
 
     @Override
@@ -75,8 +77,13 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
     }
 
     @Override
-    public void generatedGroups(DTNHost maker, MergedInterval mergedInterval) {
-        this.groupsPerHost.computeIfAbsent(maker, k -> new ArrayList<>()).add(mergedInterval);
+    public void latenciesGroupKey(double latency) {
+        this.latencies.add(latency);
+    }
+
+    @Override
+    public void generatedGroups(DTNHost maker, List<MergedInterval> mergedInterval) {
+        this.groupsPerHost.put(maker, mergedInterval);
     }
 
     @Override
@@ -103,7 +110,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
         return this.filtersCreated.size();
     }
 
-    public int totalEncryptedEventsCreated(){
+    public int totalEncryptedCreated(){
         return this.encryptedEventsCreated.size();
     }
 
@@ -129,10 +136,8 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
     }
 
 
-    public int totalGroupsPerHost(){
-        return this.groupsPerHost.values().stream()
-                .mapToInt(List::size)
-                .sum();
+    public int totalBrokerCreatingGroups(){
+        return this.groupsPerHost.size();
     }
 
     public int totalMessageOpened(){
@@ -145,15 +150,11 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
         return this.groupKeysPerBroker.size();
     }
 
-    public int totalGenerationLoad() {
+    public int totalGenerationMsgLoad() {
         return generationMsg.stream()
                 .flatMap(Set::stream)
                 .mapToInt(Message::getSize)
                 .sum();
-    }
-
-    public int totalGenerationDoes(){
-        return generationMsg.size();
     }
 
     public int avgComputingCostGroup(){
@@ -165,7 +166,7 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
     @Override
     public void updated(List<DTNHost> hosts) {
         if (isWarmup()) {
-            return; // Skip updates during warm-up phase
+            return; // Skip updates during the warm-up phase
         }
 
         // Current simulation time
@@ -219,24 +220,38 @@ public class KeysPerHostReport extends Report implements IKeyListener, UpdateLis
         return Math.max(calculatedCost, baseCost); // Ensure cost is at least base cost
     }
 
+    private double totalLatencyGroupKey(){
+        double totalLatency = 0;
+        for(Double latency : this.latencies){
+            totalLatency += latency;
+        }
+        return (totalLatency/this.latencies.size());
+    }
+
+    private double avgToSubscriberLatencyGroupKey(){
+        return totalLatencyGroupKey()/this.subscriberCount;
+    }
+
     @Override
     public void done() {
         write("Message stats for scenario " + getScenarioName());
 
-        String statsText = "\ncreatedBrokerKeys : " + this.totalGroupKeysPerBroker() +
-                "\nopenedMessages : " + this.totalMessageOpened() +
-                "\ncreatedPairKey : " + this.totalPairKeys() +
-                "\ncreatedGroup : " + this.totalGroupsPerHost() +
-                "\ncreatedPairKeyBySubscriber : " + this.totalSubscriberPairKeys() +
-                "\ncreatedPairKeyByPublisher : " + this.totalPublisherPairKeys() +
-                "\ntotalCreatedEvents : " + this.totalEventsCreated() +
-                "\ntotalCreatedFilters : " + this.totalFiltersCreated() +
-                "\ntotalCreatedEncryptedEvents : " + this.totalEncryptedEventsCreated() +
-                "\ntotalSizeWhenMsgGrouped : " + this.totalGenerationLoad() +
-                "\ntotalHowManyBrokerGenerateGroup : " + this.totalGenerationDoes() +
-                "\ntotalComputingCost(ms) : " + this.totalComputingCostGroup +
-                "\navgComputingCostPerSubscriber(ms) : " + this.avgComputingCostGroup() +
-                "\ntotalSubscriber : " + this.subscriberCount
+        String statsText = "\ncreated Broker Keys : " + this.totalGroupKeysPerBroker() +
+                "\nAverage Created Broker Keys : " + this.totalGroupKeysPerBroker()/this.subscriberCount+
+                "\nOpened Messages : " + this.totalMessageOpened() +
+                "\nCreated Pair Keys : " + this.totalPairKeys() +
+                "\nCreated Pair Key By Subscriber : " + this.totalSubscriberPairKeys() +
+                "\nCreated Pair Key By Publisher : " + this.totalPublisherPairKeys() +
+                "\nHow Many Times Broker Creating Group : " + this.totalBrokerCreatingGroups() +
+                "\nTotal Created Events : " + this.totalEventsCreated() +
+                "\nTotal Created Filters : " + this.totalFiltersCreated() +
+                "\nTotal Created Encrypted Events : " + this.totalEncryptedCreated() +
+                "\nTotal Size When Msg Grouped : " + this.totalGenerationMsgLoad() +
+                "\nTotal Computing Cost(ms) : " + this.totalComputingCostGroup +
+                "\nAverage Computing Cost Per Subscriber(ms) : " + this.avgComputingCostGroup() +
+                "\nTotal Subscriber : " + this.subscriberCount +
+                "\nTotal latency Load : " + this.totalLatencyGroupKey() +
+                "\nAvg latency Load : " + this.avgToSubscriberLatencyGroupKey()
                 ;
 
         write(statsText);

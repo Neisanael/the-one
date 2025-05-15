@@ -6,6 +6,7 @@ import core.DTNHost;
 import core.Message;
 
 import javax.crypto.SecretKey;
+import java.util.List;
 import java.util.Set;
 
 public interface IKeyListener {
@@ -20,7 +21,9 @@ public interface IKeyListener {
 
     public void openedMessage(SecretKey key, DTNHost subscriber);
 
-    public void generatedGroups(DTNHost maker, MergedInterval mergedInterval);
+    public void latenciesGroupKey(double latency);
+
+    public void generatedGroups(DTNHost maker, List<MergedInterval> mergedInterval);
 
     public void keyPairCreated(PairKey pairKey);
 

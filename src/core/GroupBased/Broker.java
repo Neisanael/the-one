@@ -17,7 +17,7 @@ import static GroupBased.LoremIpsumGenerator.generateLoremIpsum;
 public class Broker extends DTNHost implements PropertySettings{
     private List<MergedInterval> groups;
     private final List<PairKey> pairKeys;
-    private final Map<byte[], List<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encrypted KG\
+    private Map<byte[], Set<byte[]>> encryptedEventsGrouped; //saving encrypted event that encrypted with List of encrypted KG\
     private final List<IKeyListener> keyListeners;
     private Set<KeyCache> keyCaches;
     private Set<RawGroup> rawGroups;
@@ -57,6 +57,7 @@ public class Broker extends DTNHost implements PropertySettings{
         if(groups == null){
             return;
         }
+        notifyGroupGeneration(groups);
     }
 
     private List<MergedInterval> groupedFilters(){
@@ -133,13 +134,9 @@ public class Broker extends DTNHost implements PropertySettings{
     private Set<EventData> extractEventsFromMessages() {
         Set<EventData> events = new HashSet<>();
         for (Message msg : getMessageCollection()) {
-            if (msg.getProperty(EVENTS) instanceof Set<?> eventSet) {
-                try {
-                    System.out.println(eventSet);
-                    events.addAll((Set<EventData>)eventSet);
-                } catch (ClassCastException e) {
-                    System.err.println("Event type mismatch in message");
-                }
+            if (msg.getProperty(EVENTS) != null) {
+                Set<EventData> msgEvents = (Set<EventData>) msg.getProperty(EVENTS);
+                events.addAll(msgEvents);
             }
         }
         return events;
@@ -172,8 +169,10 @@ public class Broker extends DTNHost implements PropertySettings{
             kc.setSenders(group.getSenders());
             kc.setSecretKey(newKey);
             kc.setTimeCreated(SimClock.getTime());
+            notifyGroupKeyGenerationForLatencies(SimClock.getTime());
             keyCaches.add(kc);
             notifyKeyGeneration(newKey);
+            this.setEncryptedEventsGrouped(encryptEventGroups());
         } catch (Exception e) {
             System.err.println("Key generation failed: " + e.getMessage());
         }
@@ -183,6 +182,22 @@ public class Broker extends DTNHost implements PropertySettings{
         if (keyListeners != null) {
             keyListeners.forEach(kl ->
                     kl.groupKeyGeneratedByBroker(key, this)
+            );
+        }
+    }
+
+    private void notifyGroupGeneration(List<MergedInterval> group) {
+        if (keyListeners != null) {
+            keyListeners.forEach(kl ->
+                    kl.generatedGroups(this, group)
+            );
+        }
+    }
+
+    private void notifyGroupKeyGenerationForLatencies(double load){
+        if (keyListeners != null) {
+            keyListeners.forEach(kl ->
+                    kl.latenciesGroupKey(load)
             );
         }
     }
@@ -254,7 +269,11 @@ public class Broker extends DTNHost implements PropertySettings{
         return cipher.doFinal(keyToEncrypt.getEncoded());
     }
 
-    public Map<byte[], List<byte[]>> getEncryptedEventsGrouped() {
+    public void setEncryptedEventsGrouped(Map<byte[], Set<byte[]>> encryptedEventsGrouped) {
+        this.encryptedEventsGrouped = encryptedEventsGrouped;
+    }
+
+    public Map<byte[], Set<byte[]>> getEncryptedEventsGrouped() {
         return encryptedEventsGrouped;
     }
 

@@ -1,8 +1,11 @@
-package input;
+package input.GroupBased;
 
 import core.Settings;
+import input.EventQueue;
+import input.ExternalEvent;
+import input.MessageEventGenerator;
 
-public class MessageEventGroupingGenerator extends MessageEventGenerator{
+public class MessageEventPublisherGenerator extends MessageEventGenerator {
     /**
      * Constructor, initializes the interval between events,
      * and the size of messages generated, as well as number
@@ -10,7 +13,7 @@ public class MessageEventGroupingGenerator extends MessageEventGenerator{
      *
      * @param s Settings for this generator.
      */
-    public MessageEventGroupingGenerator(Settings s) {
+    public MessageEventPublisherGenerator(Settings s) {
         super(s);
     }
 
@@ -33,7 +36,7 @@ public class MessageEventGroupingGenerator extends MessageEventGenerator{
         interval = drawNextEventTimeDiff();
 
         /* Create event and advance to next event */
-        MessageCreateEventGroup mce = new MessageCreateEventGroup(from, to, this.getID(),
+        MessageCreateEventPublisher mce = new MessageCreateEventPublisher(from, to, this.getID(),
                 msgSize, responseSize, this.nextEventsTime);
         this.nextEventsTime += interval;
 
