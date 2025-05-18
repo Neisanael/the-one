@@ -21,6 +21,8 @@ public class Broker extends DTNHost implements PropertySettings{
     private final List<IKeyListener> keyListeners;
     private Set<KeyCache> keyCaches;
     private Set<RawGroup> rawGroups;
+    private static final int KEY_CACHING_PROCESS = 9000000;
+    private static final int GROUP_FILTER = 100000;
     /**
      * Creates a new DTNHost.
      *
@@ -99,6 +101,7 @@ public class Broker extends DTNHost implements PropertySettings{
 
         List<MergedInterval> groupDone = new ArrayList<>();
         for (Segment s : result) {
+            notifyGroupKeyGenerationForLatencies(GROUP_FILTER);
             MergedInterval mgl = new MergedInterval(s.start, s.end, s.subscribers);
             groupDone.add(mgl);
         }
@@ -169,7 +172,7 @@ public class Broker extends DTNHost implements PropertySettings{
             kc.setSenders(group.getSenders());
             kc.setSecretKey(newKey);
             kc.setTimeCreated(SimClock.getTime());
-            notifyGroupKeyGenerationForLatencies(SimClock.getTime());
+            notifyGroupKeyGenerationForLatencies(KEY_CACHING_PROCESS);
             keyCaches.add(kc);
             notifyKeyGeneration(newKey);
             this.setEncryptedEventsGrouped(encryptEventGroups());

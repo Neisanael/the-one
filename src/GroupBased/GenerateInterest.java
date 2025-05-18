@@ -15,15 +15,15 @@ public class GenerateInterest {
 
         while (filters.size() < 5) {
             boolean topicValue = rand.nextBoolean();
-            int min = rand.nextInt(30); // Generate a random min value between 0 and 29
+            int min = rand.nextInt(100); // Generate a random min value between 0 and 29
 
             // Ensure max is at least min + 1 but not exceeding 30
             int max;
-            if (min == 29) {
+            if (min == 99) {
                 // Special case: if min is 29, max can only be 30
-                max = 30;
+                max = 100;
             } else {
-                max = rand.nextInt(30 - min) + min + 1; // min+1 to ensure max > min
+                max = rand.nextInt(100 - min) + min + 1; // min+1 to ensure max > min
             }
 
             filters.add(new FilterData(topicValue, min, max));
@@ -38,7 +38,7 @@ public class GenerateInterest {
 
         while (events.size() < 5) {
             boolean topicValue = rand.nextBoolean();
-            int min = rand.nextInt(30); // Generate a random min value between 0 and 30
+            int min = rand.nextInt(100); // Generate a random min value between 0 and 30
             events.add(new EventData(topicValue, min));
         }
 

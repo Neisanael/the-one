@@ -222,6 +222,17 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
     public Message messageTransferred(String id, DTNHost from) {
         Message msg = super.messageTransferred(id, from);
         if (this.getHost() instanceof Broker) {
+            Collection<Message> encryptedCollection = new ArrayList<>();
+            for(Message msgs : this.getHost().getMessageCollection()){
+                if(msgs.getProperty(ENCRYPTED) != null){
+                    encryptedCollection.add(msgs);
+                }
+            }
+
+            for(Message msgs : encryptedCollection){
+                deleteMessage(msgs.getId(), true);
+            }
+
             ((Broker) this.getHost()).makeGroups();
             ((Broker) this.getHost()).processGroup();
             Set<Message> setFilterMsg = new HashSet<>();
@@ -230,6 +241,18 @@ public class GrouperRouter extends ActiveRouter implements PropertySettings {
                     setFilterMsg.add(msgs);
                 }
             }
+
+            Collection<Message> filterEventCollection = new ArrayList<>();
+            for(Message msgs : this.getHost().getMessageCollection()){
+                if(msgs.getProperty(FILTERS) != null || msgs.getProperty(EVENTS) != null){
+                    filterEventCollection.add(msgs);
+                }
+            }
+
+            for(Message msgs : filterEventCollection){
+                deleteMessage(msgs.getId(), true);
+            }
+
             for (IKeyListener kl : kListeners) {
                 kl.generationLoad(setFilterMsg);
             }

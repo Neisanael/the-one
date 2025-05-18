@@ -78,7 +78,7 @@ Group2.bufferSize = 256M
 
 # another group of pedestrians
 Group3.groupID = subscriber
-Group3.nrofHosts = 5
+Group3.nrofHosts = 30
 Group3.bufferSize = 256M
 
 ## Message creation parameters
@@ -88,7 +88,7 @@ Events.nrof = 3
 Events1.class = GroupBased.MessageEncryptedBrokerGenerator
 # (following settings are specific for the MessageEventGenerator class)
 # Creation interval in seconds (one new message every 25 to 35 seconds)
-Events1.interval = 1,5
+Events1.interval = 25,35
 # Message sizes (500kB - 1MB)
 Events1.size = 500k,1M
 # range of message source/destination addresses
@@ -112,11 +112,11 @@ Events2.prefix = Event
 Events3.class = GroupBased.MessageFilterSubscriberGenerator
 # (following settings are specific for the MessageEventGenerator class)
 # Creation interval in seconds (one new message every 25 to 35 seconds)
-Events3.interval = 20,20
+Events3.interval = 86,86
 # Message sizes (500kB - 1MB)
 Events3.size = 500k,1M
 # range of message source/destination addresses
-Events3.hosts = 30, 34
+Events3.hosts = 30, 59
 # Message ID prefix
 Events3.prefix = Filter
 

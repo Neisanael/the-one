@@ -10,6 +10,9 @@ import core.Message;
 import core.World;
 import input.MessageEvent;
 
+import java.util.ArrayList;
+import java.util.Collection;
+
 public class MessageCreateEncryptedBroker extends MessageEvent implements PropertySettings {
     private final int size;
     private final int responseSize;
@@ -46,6 +49,7 @@ public class MessageCreateEncryptedBroker extends MessageEvent implements Proper
                 from.createNewMessage(m);
             }
         }
+
     }
 
     @Override
